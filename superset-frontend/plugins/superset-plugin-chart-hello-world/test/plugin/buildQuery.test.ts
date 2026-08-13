@@ -16,39 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChartProps } from '@superset-ui/core';
+import buildQuery from '../../src/plugin/buildQuery';
 
-export default function transformProps(chartProps: ChartProps) {
-  const {
-    width,
-    height,
-    formData,
-    queriesData,
-    hooks,
-    filterState,
-    emitCrossFilters,
-  } = chartProps;
-  const {
-    linearColorScheme,
-    numberFormat,
-    selectCountry,
-    colorScheme,
-    sliceId,
-    entity,
-  } = formData;
-
-  return {
-    width,
-    height,
-    data: queriesData[0].data,
-    country: selectCountry ? String(selectCountry).toLowerCase() : null,
-    linearColorScheme,
-    numberFormat,
-    colorScheme,
-    sliceId,
-    entity,
-    setDataMask: hooks.setDataMask,
-    filterState,
-    emitCrossFilters,
+describe('SupersetPluginChartHelloWorld buildQuery', () => {
+  const formData = {
+    datasource: '5__table',
+    granularity_sqla: 'ds',
+    series: 'foo',
+    viz_type: 'my_chart',
   };
-}
+
+  test('should build groupby with series in form data', () => {
+    const queryContext = buildQuery(formData);
+    const [query] = queryContext.queries;
+    expect(query.columns).toEqual(['foo']);
+  });
+});

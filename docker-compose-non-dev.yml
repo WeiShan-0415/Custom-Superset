@@ -62,8 +62,7 @@ services:
         required: true
       - path: docker/.env-local # optional override
         required: false
-    build:
-      <<: *common-build
+    image: my-superset:6.1.0-custom
     container_name: superset_app
     command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
     user: "root"
@@ -77,8 +76,7 @@ services:
 
   superset-init:
     container_name: superset_init
-    build:
-      <<: *common-build
+    image: my-superset:6.1.0-custom
     command: ["/app/docker/docker-init.sh"]
     env_file:
       - path: docker/.env # default
@@ -96,8 +94,7 @@ services:
       disable: true
 
   superset-worker:
-    build:
-      <<: *common-build
+    image: my-superset:6.1.0-custom
     container_name: superset_worker
     command: ["/app/docker/docker-bootstrap.sh", "worker"]
     env_file:
@@ -119,8 +116,7 @@ services:
         ]
 
   superset-worker-beat:
-    build:
-      <<: *common-build
+    image: my-superset:6.1.0-custom
     container_name: superset_worker_beat
     command: ["/app/docker/docker-bootstrap.sh", "beat"]
     env_file:

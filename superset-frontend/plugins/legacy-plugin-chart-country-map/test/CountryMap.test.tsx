@@ -69,6 +69,11 @@ const mockMapData = {
       properties: { ISO: 'CAN', NAME_1: 'Canada' },
       geometry: {},
     },
+    {
+      type: 'Feature',
+      properties: { ISO: 'USA', NAME_1: 'United States' },
+      geometry: {},
+    },
   ],
 };
 
@@ -88,7 +93,10 @@ describe('CountryMap (legacy d3)', () => {
       <ReactCountryMap
         width={500}
         height={300}
-        data={[{ country_id: 'CAN', metric: 100 }]}
+        data={[
+          { country_id: 'CAN', metric: 100 },
+          { country_id: 'USA', metric: 50 },
+        ]}
         country="canada"
         linearColorScheme="bnbColors"
         colorScheme=""
@@ -111,7 +119,10 @@ describe('CountryMap (legacy d3)', () => {
       <ReactCountryMap
         width={500}
         height={300}
-        data={[{ country_id: 'CAN', metric: 100 }]}
+        data={[
+          { country_id: 'CAN', metric: 100 },
+          { country_id: 'USA', metric: 50 },
+        ]}
         country="canada"
         linearColorScheme="bnbColors"
         colorScheme=""
@@ -131,10 +142,133 @@ describe('CountryMap (legacy d3)', () => {
     expect(popup!).toHaveStyle({ display: 'none' });
   });
 
-  test('shows tooltip on mouseenter/mousemove/mouseout', async () => {
+  test('removes colors for regions excluded by updated query data', () => {
     d3Any.json.mockImplementation((_url: string, cb: D3JsonCallback) =>
       cb(null, mockMapData),
     );
+
+    const commonProps = {
+      width: 500,
+      height: 300,
+      country: 'canada',
+      linearColorScheme: 'bnbColors',
+      colorScheme: '',
+    };
+    const { rerender } = render(
+      <ReactCountryMap
+        {...commonProps}
+        data={[
+          { country_id: 'CAN', metric: 100 },
+          { country_id: 'USA', metric: 50 },
+        ]}
+      />,
+    );
+
+    rerender(
+      <ReactCountryMap
+        {...commonProps}
+        data={[{ country_id: 'CAN', metric: 100 }]}
+      />,
+    );
+
+    const regions = document.querySelectorAll<SVGPathElement>('path.region');
+    expect(regions[0].style.fill).not.toBe('none');
+    expect(regions[1].style.fill).toBe('none');
+  });
+
+  test('restores cached region colors while a cross-filter is clearing', () => {
+    d3Any.json.mockImplementation((_url: string, cb: D3JsonCallback) =>
+      cb(null, mockMapData),
+    );
+
+    const commonProps = {
+      width: 500,
+      height: 300,
+      country: 'canada',
+      linearColorScheme: 'bnbColors',
+      colorScheme: '',
+      sliceId: 9876,
+    };
+    const { rerender } = render(
+      <ReactCountryMap
+        {...commonProps}
+        data={[
+          { country_id: 'CAN', metric: 100 },
+          { country_id: 'USA', metric: 50 },
+        ]}
+        filterState={{ selectedValues: [] }}
+      />,
+    );
+
+    rerender(
+      <ReactCountryMap
+        {...commonProps}
+        data={[{ country_id: 'CAN', metric: 100 }]}
+        filterState={{ selectedValues: ['CAN'] }}
+      />,
+    );
+    rerender(
+      <ReactCountryMap
+        {...commonProps}
+        data={[{ country_id: 'CAN', metric: 100 }]}
+        filterState={{ selectedValues: [] }}
+      />,
+    );
+
+    const regions = document.querySelectorAll<SVGPathElement>('path.region');
+    expect(regions[0].style.fill).not.toBe('none');
+    expect(regions[1].style.fill).not.toBe('none');
+  });
+
+  test('applies a cross-filter when a region is clicked', async () => {
+    d3Any.json.mockImplementation((_url: string, cb: D3JsonCallback) =>
+      cb(null, mockMapData),
+    );
+
+    const setDataMask = jest.fn();
+
+    render(
+      <ReactCountryMap
+        width={500}
+        height={300}
+        data={[
+          { country_id: 'CAN', metric: 100 },
+          { country_id: 'USA', metric: 50 },
+        ]}
+        country="canada"
+        linearColorScheme="bnbColors"
+        colorScheme=""
+        entity="state_code"
+        emitCrossFilters
+        filterState={{ selectedValues: [] }}
+        setDataMask={setDataMask}
+      />,
+    );
+
+    const regions = document.querySelectorAll<SVGPathElement>('path.region');
+    expect(regions).toHaveLength(2);
+
+    fireEvent.click(regions[0]);
+
+    expect(regions[0].style.fill).not.toBe('none');
+    expect(regions[1].style.fill).toBe('none');
+    expect(setDataMask).toHaveBeenCalledWith({
+      extraFormData: {
+        filters: [{ col: 'state_code', op: 'IN', val: ['CAN'] }],
+      },
+      filterState: {
+        value: ['CAN'],
+        selectedValues: ['CAN'],
+      },
+    });
+  });
+
+  test('clears the cross-filter when the map background is clicked', async () => {
+    d3Any.json.mockImplementation((_url: string, cb: D3JsonCallback) =>
+      cb(null, mockMapData),
+    );
+
+    const setDataMask = jest.fn();
 
     render(
       <ReactCountryMap
@@ -144,19 +278,29 @@ describe('CountryMap (legacy d3)', () => {
         country="canada"
         linearColorScheme="bnbColors"
         colorScheme=""
+        entity="state_code"
+        emitCrossFilters
+        filterState={{ selectedValues: ['CAN'] }}
+        setDataMask={setDataMask}
       />,
     );
 
-    const region = document.querySelector('path.region');
+    const background = document.querySelector('rect.background');
+    const region = document.querySelector('path.region') as SVGPathElement;
+    expect(background).not.toBeNull();
     expect(region).not.toBeNull();
 
-    const popup = document.querySelector('.hover-popup');
-    expect(popup).not.toBeNull();
+    region.style.fill = 'rgb(1, 2, 3)';
 
-    fireEvent.mouseEnter(region!);
-    expect(popup!).toHaveStyle({ display: 'block' });
+    fireEvent.click(background!);
 
-    fireEvent.mouseOut(region!);
-    expect(popup!).toHaveStyle({ display: 'none' });
+    expect(region.style.fill).not.toBe('rgb(1, 2, 3)');
+    expect(setDataMask).toHaveBeenCalledWith({
+      extraFormData: { filters: [] },
+      filterState: {
+        value: null,
+        selectedValues: null,
+      },
+    });
   });
 });

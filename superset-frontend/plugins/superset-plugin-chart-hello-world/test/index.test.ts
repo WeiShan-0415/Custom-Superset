@@ -16,39 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChartProps } from '@superset-ui/core';
+import { SupersetPluginChartHelloWorld } from '../src';
 
-export default function transformProps(chartProps: ChartProps) {
-  const {
-    width,
-    height,
-    formData,
-    queriesData,
-    hooks,
-    filterState,
-    emitCrossFilters,
-  } = chartProps;
-  const {
-    linearColorScheme,
-    numberFormat,
-    selectCountry,
-    colorScheme,
-    sliceId,
-    entity,
-  } = formData;
-
-  return {
-    width,
-    height,
-    data: queriesData[0].data,
-    country: selectCountry ? String(selectCountry).toLowerCase() : null,
-    linearColorScheme,
-    numberFormat,
-    colorScheme,
-    sliceId,
-    entity,
-    setDataMask: hooks.setDataMask,
-    filterState,
-    emitCrossFilters,
-  };
-}
+/**
+ * The example tests in this file act as a starting point, and
+ * we encourage you to build more. These tests check that the
+ * plugin loads properly, and focus on `transformProps`
+ * to ake sure that data, controls, and props are all
+ * treated correctly (e.g. formData from plugin controls
+ * properly transform the data and/or any resulting props).
+ */
+describe('superset-plugin-chart-hello-world', () => {
+  test('exists', () => {
+    expect(SupersetPluginChartHelloWorld).toBeDefined();
+  });
+});

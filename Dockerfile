@@ -283,3 +283,30 @@ USER root
 RUN uv pip install .[duckdb]
 USER superset
 CMD ["/app/docker/entrypoints/docker-ci.sh"]
+
+FROM lean AS custom
+
+USER root
+
+RUN /app/docker/apt-install.sh \
+    build-essential \
+    python3-dev \
+    libldap2-dev \
+    libsasl2-dev \
+    libssl-dev
+
+RUN uv pip install \
+    psycopg2-binary \
+    python-ldap \
+    Authlib \
+    cryptography \
+    trino \
+    ibm-db-sa \
+    pymysql \
+    elasticsearch-dbapi \
+    oracledb \
+    asyncpg \
+    pyhive \
+    impyla
+
+USER superset

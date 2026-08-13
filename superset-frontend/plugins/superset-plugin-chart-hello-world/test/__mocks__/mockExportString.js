@@ -16,39 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChartProps } from '@superset-ui/core';
-
-export default function transformProps(chartProps: ChartProps) {
-  const {
-    width,
-    height,
-    formData,
-    queriesData,
-    hooks,
-    filterState,
-    emitCrossFilters,
-  } = chartProps;
-  const {
-    linearColorScheme,
-    numberFormat,
-    selectCountry,
-    colorScheme,
-    sliceId,
-    entity,
-  } = formData;
-
-  return {
-    width,
-    height,
-    data: queriesData[0].data,
-    country: selectCountry ? String(selectCountry).toLowerCase() : null,
-    linearColorScheme,
-    numberFormat,
-    colorScheme,
-    sliceId,
-    entity,
-    setDataMask: hooks.setDataMask,
-    filterState,
-    emitCrossFilters,
-  };
-}
+module.exports = 'test-file-stub';

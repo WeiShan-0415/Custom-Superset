@@ -63,9 +63,19 @@ interface CountryMapProps {
   numberFormat: string;
   colorScheme: string;
   sliceId: number;
+  entity: string;
+  setDataMask: (dataMask: Record<string, unknown>) => void;
+  filterState: {
+    selectedValues?: string[];
+  };
+  emitCrossFilters: boolean;
 }
 
 const maps: Record<string, GeoData> = {};
+const colorMapCache: Record<
+  string,
+  { colors: Record<string, string>; selectionActive: boolean }
+> = {};
 
 function CountryMap(element: HTMLElement, props: CountryMapProps) {
   const {
@@ -77,6 +87,10 @@ function CountryMap(element: HTMLElement, props: CountryMapProps) {
     numberFormat,
     colorScheme,
     sliceId,
+    entity,
+    setDataMask,
+    filterState,
+    emitCrossFilters,
   } = props;
 
   const container = element;
@@ -92,13 +106,48 @@ function CountryMap(element: HTMLElement, props: CountryMapProps) {
     : () => '#ccc'; // fallback if scheme not found
   const colorScale = CategoricalColorNamespace.getScale(colorScheme);
 
-  const colorMap: Record<string, string> = {};
+  const renderedColorMap: Record<string, string> = {};
   data.forEach(d => {
-    colorMap[d.country_id] = colorScheme
+    renderedColorMap[d.country_id] = colorScheme
       ? colorScale(d.country_id, sliceId)
       : (linearColorScale(d.metric) ?? '');
   });
-  const colorFn = (d: GeoFeature) => colorMap[d.properties.ISO] || 'none';
+  const hasSelection = Boolean(filterState?.selectedValues?.length);
+  const colorMapKey = `${sliceId}:${country}:${linearColorScheme}:${colorScheme}`;
+  const cachedColorMap = colorMapCache[colorMapKey];
+  let fullColorMap = renderedColorMap;
+
+  if (hasSelection) {
+    if (cachedColorMap) {
+      cachedColorMap.selectionActive = true;
+      fullColorMap = cachedColorMap.colors;
+    } else {
+      colorMapCache[colorMapKey] = {
+        colors: renderedColorMap,
+        selectionActive: true,
+      };
+    }
+  } else if (cachedColorMap?.selectionActive) {
+    // Clearing a cross-filter can render once with the selected query result
+    // before the unfiltered query completes. Preserve the pre-click colors
+    // for that transition only.
+    cachedColorMap.selectionActive = false;
+    fullColorMap = cachedColorMap.colors;
+  } else {
+    // Native dashboard filters do not populate this chart's filterState, so
+    // their query result must replace the cache even when it has fewer rows.
+    colorMapCache[colorMapKey] = {
+      colors: renderedColorMap,
+      selectionActive: false,
+    };
+  }
+  const selectedValues = filterState?.selectedValues || [];
+  const fullColorFn = (d: GeoFeature) =>
+    fullColorMap[d.properties.ISO] || 'none';
+  const colorFn = (d: GeoFeature) =>
+    hasSelection && !selectedValues.includes(d.properties.ISO)
+      ? 'none'
+      : fullColorFn(d);
 
   const path = d3.geo.path();
   const div = d3.select(container);
@@ -122,7 +171,7 @@ function CountryMap(element: HTMLElement, props: CountryMapProps) {
 
   let centered: GeoFeature | null;
 
-  const clicked = function clicked(d: GeoFeature) {
+  const clicked = function clicked(d: GeoFeature | null) {
     const hasCenter = d && centered !== d;
     let x: number;
     let y: number;
@@ -150,12 +199,70 @@ function CountryMap(element: HTMLElement, props: CountryMapProps) {
       );
   };
 
-  backgroundRect.on('click', clicked);
+  const handleRegionClick = function handleRegionClick(d: GeoFeature) {
+    const regionId = d?.properties.ISO;
+    const isDeselecting = centered === d || selectedValues.includes(regionId);
+    clicked(d);
+
+    if (!emitCrossFilters || !regionId) {
+      return;
+    }
+
+    const values = isDeselecting ? [] : [regionId];
+
+    mapLayer
+      .selectAll('path.region')
+      .style('fill', feature =>
+        values.length && feature.properties.ISO !== regionId
+          ? 'none'
+          : fullColorFn(feature),
+      );
+
+    setDataMask({
+      extraFormData: {
+        filters: values.length
+          ? [
+              {
+                col: entity,
+                op: 'IN',
+                val: values,
+              },
+            ]
+          : [],
+      },
+      filterState: {
+        value: values.length ? values : null,
+        selectedValues: values.length ? values : null,
+      },
+    });
+  };
+
+  const handleBackgroundClick = function handleBackgroundClick() {
+    clicked(null);
+    mapLayer.selectAll('path.region').style('fill', fullColorFn);
+    hoverPopup.style('display', 'none');
+
+    if (!emitCrossFilters || !(filterState.selectedValues || []).length) {
+      return;
+    }
+
+    setDataMask({
+      extraFormData: {
+        filters: [],
+      },
+      filterState: {
+        value: null,
+        selectedValues: null,
+      },
+    });
+  };
+
+  backgroundRect.on('click', handleBackgroundClick);
 
   const getNameOfRegion = function getNameOfRegion(
     feature: GeoFeature,
   ): string {
-    if (feature && feature.properties) {
+    if (feature?.properties) {
       if (feature.properties.ID_2) {
         return feature.properties.NAME_2 || '';
       }
@@ -236,7 +343,7 @@ function CountryMap(element: HTMLElement, props: CountryMapProps) {
       .on('mouseenter', mouseenter)
       .on('mousemove', mousemove)
       .on('mouseout', mouseout)
-      .on('click', clicked);
+      .on('click', handleRegionClick);
   }
 
   const map = maps[country];

@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { t } from '@apache-superset/core/ui';
 import { validateNonEmpty } from '@superset-ui/core';
 import {
   ControlPanelConfig,
   sharedControls,
 } from '@superset-ui/chart-controls';
+const t = (text: string) => text;
 
 const config: ControlPanelConfig = {
   /**
@@ -100,7 +100,6 @@ const config: ControlPanelConfig = {
 
   // For control input types, see: superset-frontend/src/explore/components/controls/index.js
   controlPanelSections: [
-    <%if (chartType === 'timeseries') { %>sections.legacyTimeseriesTime,<% } %>
     {
       label: t('Query'),
       expanded: true,

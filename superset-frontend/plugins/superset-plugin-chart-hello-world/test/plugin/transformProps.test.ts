@@ -17,38 +17,39 @@
  * under the License.
  */
 import { ChartProps } from '@superset-ui/core';
+import transformProps from '../../src/plugin/transformProps';
 
-export default function transformProps(chartProps: ChartProps) {
-  const {
-    width,
-    height,
-    formData,
-    queriesData,
-    hooks,
-    filterState,
-    emitCrossFilters,
-  } = chartProps;
-  const {
-    linearColorScheme,
-    numberFormat,
-    selectCountry,
-    colorScheme,
-    sliceId,
-    entity,
-  } = formData;
-
-  return {
-    width,
-    height,
-    data: queriesData[0].data,
-    country: selectCountry ? String(selectCountry).toLowerCase() : null,
-    linearColorScheme,
-    numberFormat,
-    colorScheme,
-    sliceId,
-    entity,
-    setDataMask: hooks.setDataMask,
-    filterState,
-    emitCrossFilters,
+describe('SupersetPluginChartHelloWorld transformProps', () => {
+  const formData = {
+    colorScheme: 'bnbColors',
+    datasource: '3__table',
+    granularity_sqla: 'ds',
+    metric: 'sum__num',
+    series: 'name',
+    boldText: true,
+    headerFontSize: 'xs',
+    headerText: 'my text',
   };
-}
+  const chartProps = new ChartProps({
+    formData,
+    width: 800,
+    height: 600,
+    theme: {} as ChartProps['theme'],
+    queriesData: [
+      {
+        data: [{ name: 'Hulk', sum__num: 1 }],
+      },
+    ],
+  });
+
+  test('should transform chart props for viz', () => {
+    expect(transformProps(chartProps)).toEqual({
+      width: 800,
+      height: 600,
+      boldText: true,
+      headerFontSize: 'xs',
+      headerText: 'my text',
+      data: [{ name: 'Hulk', sum__num: 1 }],
+    });
+  });
+});
