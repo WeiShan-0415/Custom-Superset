@@ -90,7 +90,7 @@ import AgGridTableChartPlugin from '@superset-ui/plugin-chart-ag-grid-table';
 import TimeTableChartPlugin from '../TimeTable';
 import { SupersetPluginChartHelloWorld } from 'superset-plugin-chart-hello-world';
 import { SupersetPluginChartCustomDistrictMap } from 'superset-plugin-chart-custom-district-map';
-
+import { SupersetPluginChart3DMap } from 'superset-plugin-chart-3d-map';
 export default class MainPreset extends Preset {
   constructor() {
     const experimentalPlugins = isFeatureEnabled(
@@ -214,6 +214,9 @@ export default class MainPreset extends Preset {
         }).configure({ key: VizType.Cartodiagram }),
         new SupersetPluginChartHelloWorld().configure({
           key: 'ext-hello-world',
+        }),
+        new SupersetPluginChart3DMap().configure({
+          key: 'ext-3d-map',
         }),
         ...experimentalPlugins,
         ...agGridTablePlugin,

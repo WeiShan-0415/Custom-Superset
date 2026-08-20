@@ -76,6 +76,7 @@ const colorMapCache: Record<
   string,
   { colors: Record<string, string>; selectionActive: boolean }
 > = {};
+const COUNTRY_MAP_STATE_SELECTED_EVENT = 'superset:country-map:state-selected';
 
 function CountryMap(element: HTMLElement, props: CountryMapProps) {
   const {
@@ -235,6 +236,9 @@ function CountryMap(element: HTMLElement, props: CountryMapProps) {
         selectedValues: values.length ? values : null,
       },
     });
+    if (values.length > 0) {
+      window.dispatchEvent(new CustomEvent(COUNTRY_MAP_STATE_SELECTED_EVENT));
+    }
   };
 
   const handleBackgroundClick = function handleBackgroundClick() {

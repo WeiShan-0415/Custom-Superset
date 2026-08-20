@@ -235,6 +235,85 @@ The heading uses the active inferred, query-provided, or default state and there
 whenever the map changes. The map projection uses the remaining chart height below the
 heading so the title does not overlap or crop the map.
 
+## 12. Interaction: clear the district filter from the map background
+
+**Request:** Clear the active district cross-filter when clicking outside a district shape.
+
+**Change:** Added a full-size transparent SVG background rectangle in
+[SupersetPluginChartCustomDistrictMap.tsx](src/SupersetPluginChartCustomDistrictMap.tsx).
+Clicking an empty area inside the map canvas sends an empty filter and resets both the filter
+value and selected district values. District clicks continue to select or deselect that
+district, and background clearing only runs when cross-filter emission is enabled and a
+district is selected. The explicit rectangle ensures empty areas receive pointer events;
+depending on the SVG element's CSS background did not reliably emit clicks.
+
+## 13. Fix: restore district colors after clearing a cross-filter
+
+**Symptom:** After selecting a district and removing the resulting cross-filter, the filter
+was removed from the dashboard but the map retained its filtered appearance: the previously
+unselected districts stayed faded.
+
+**Cause:** The D3 rendering effect depended on the `filterState` object reference. Superset
+can reuse that object while changing its selected values, so React did not always rerun the
+effect when the filter was cleared.
+
+**Fix:** The rendering effect in
+[SupersetPluginChartCustomDistrictMap.tsx](src/SupersetPluginChartCustomDistrictMap.tsx) now
+depends on a serialized key containing the selected district values. Selecting or clearing a
+district therefore forces the opacity calculation to run again, restoring every district to
+full color after the filter is removed.
+
+## 14. Feature: default to no map
+
+**Request:** Do not display Selangor or another state map before a state has been selected.
+
+**Change:** Added **No map** as the first Default state option and made it the control's
+default. When the query does not identify exactly one state, a new chart displays “Select a
+state to display its district map.” Applying a state filter still infers the state and loads
+its map automatically.
+
+Charts saved before this change retain their saved default state. To adopt the new behavior
+on an existing chart, select **No map** under **Default state** and save the chart.
+
+## 15. Fix: update district color when selecting another district
+
+**Symptom:** Clicking another district updated the dashboard cross-filter value, but the map
+continued to color the previously selected district.
+
+**Cause:** The D3 rendering effect depended on the query-data array reference. Superset can
+reuse that array while replacing its row contents, so React did not always redraw the map
+after the selected district changed.
+
+**Fix:** The rendering effect now depends on the serialized district and metric values and
+builds its color lookup from that snapshot. When the filtered query changes from one district
+to another, the map redraws and moves the metric color to the newly selected district.
+
+## 16. Fix: restore the original default map after clearing a district filter
+
+**Symptom:** The first district selection on the default map filtered correctly, but removing
+that filter left the map displaying the selected-query colors. The same action worked after a
+state had first been selected through the country map.
+
+**Cause:** Clearing a cross-filter can render once with the previous one-district query result
+before the complete unfiltered query arrives. During this transition the chart replaced its
+full metric lookup with the selected district only.
+
+**Fix:** Added a metric cache scoped by chart and state. Before district filtering, the chart
+stores the complete metric lookup. When the selection is cleared, it restores those metrics
+for the transition render, then replaces the cache when the complete query result arrives.
+This follows the transition-cache behavior used by the legacy country map.
+
+## 17. Interaction: selecting a state clears the district filter
+
+**Request:** When another state is selected through the country map, remove the active
+district cross-filter so it does not restrict the newly selected state's query.
+
+**Change:** The country map emits a dashboard-local event when a state is selected. A district
+map with an active district selection listens for that event and clears its own data mask.
+The new state's complete district data can then load without the previous state's district
+filter. Deselecting or clearing the country-map state remains independent and does not trigger
+this behavior.
+
 ## Verification performed
 
 - `npm run type` (root, full monorepo type-check) — passes.

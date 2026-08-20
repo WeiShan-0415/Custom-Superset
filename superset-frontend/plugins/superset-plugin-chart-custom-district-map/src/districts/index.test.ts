@@ -22,6 +22,10 @@ test('returns the display label for a state map key', () => {
   expect(getStateLabel('negeri_sembilan')).toBe('Negeri Sembilan');
 });
 
+test('provides a no-map state option', () => {
+  expect(getStateLabel('no_map')).toBe('No map');
+});
+
 test('infers a state from a filtered set of its districts', () => {
   expect(inferStateKeyFromDistricts(['Kuching', 'Sibu'])).toBe('sarawak');
 });

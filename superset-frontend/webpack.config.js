@@ -717,8 +717,4 @@ if (process.env.BUNDLE_ANALYZER) {
 // Speed measurement is disabled by default
 // Pass flag --measure=true to enable
 // e.g. npm run build -- --measure=true
-const smp = new SpeedMeasurePlugin({
-  disable: !measure,
-});
-
-module.exports = smp.wrap(config);
+module.exports = measure ? new SpeedMeasurePlugin().wrap(config) : config;

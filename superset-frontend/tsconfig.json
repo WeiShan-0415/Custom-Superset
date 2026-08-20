@@ -60,6 +60,7 @@
       "@superset-ui/plugin-chart-*": ["./plugins/plugin-chart-*/src"],
       "@superset-ui/legacy-plugin-chart-*": ["./plugins/legacy-plugin-chart-*/src"],
       "@superset-ui/legacy-preset-chart-*": ["./plugins/legacy-preset-chart-*/src"],
+      "superset-plugin-chart-*": ["./plugins/superset-plugin-chart-*/src"],
       "echarts/types/src/*": ["./node_modules/echarts/types/src/*"]
     }
   },
@@ -97,7 +98,9 @@
     { "path": "./plugins/plugin-chart-handlebars" },
     { "path": "./plugins/plugin-chart-pivot-table" },
     { "path": "./plugins/plugin-chart-table" },
-    { "path": "./plugins/plugin-chart-word-cloud" }
+    { "path": "./plugins/plugin-chart-word-cloud" },
+    { "path": "./plugins/superset-plugin-chart-custom-district-map" },
+    { "path": "./plugins/superset-plugin-chart-hello-world" }
   ],
   "exclude": []
 }

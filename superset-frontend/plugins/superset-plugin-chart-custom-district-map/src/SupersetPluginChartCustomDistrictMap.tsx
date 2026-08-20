@@ -29,7 +29,10 @@ import {
 } from '@superset-ui/core';
 import { styled, useTheme } from '@apache-superset/core/theme';
 import districtMapUrls, { getStateLabel } from './districts';
-import { SupersetPluginChartCustomDistrictMapProps } from './types';
+import {
+  DistrictMapDataItem,
+  SupersetPluginChartCustomDistrictMapProps,
+} from './types';
 
 interface DistrictProperties {
   state: string;
@@ -95,7 +98,16 @@ function rewindFeatureCollection(
 }
 
 const geojsonCache: Record<string, DistrictFeatureCollection> = {};
+const metricCache: Record<
+  string,
+  {
+    metrics: Record<string, number>;
+    colorExtent: [number, number];
+    selectionActive: boolean;
+  }
+> = {};
 const STATE_TITLE_HEIGHT = 32;
+const COUNTRY_MAP_STATE_SELECTED_EVENT = 'superset:country-map:state-selected';
 
 const Styles = styled.div<{ height: number; width: number }>`
   position: relative;
@@ -175,6 +187,9 @@ export default function SupersetPluginChartCustomDistrictMap(
   const theme = useTheme();
   const mapHeight = Math.max(height - STATE_TITLE_HEIGHT, 0);
   const stateLabel = getStateLabel(selectState);
+  const noMapSelected = selectState === 'no_map';
+  const selectedValuesKey = JSON.stringify(filterState?.selectedValues ?? []);
+  const dataKey = JSON.stringify(data);
   const [geoData, setGeoData] =
     React.useState<DistrictFeatureCollection | null>(
       () => geojsonCache[selectState] ?? null,
@@ -190,6 +205,30 @@ export default function SupersetPluginChartCustomDistrictMap(
     setGeoData(cached ?? null);
     setLoadError(!cached && !districtMapUrls[selectState]);
   }
+
+  React.useEffect(() => {
+    const clearDistrictFilter = () => {
+      const selectedValues = JSON.parse(selectedValuesKey) as string[];
+      if (!emitCrossFilters || selectedValues.length === 0) return;
+      setDataMask({
+        extraFormData: { filters: [] },
+        filterState: {
+          value: null,
+          selectedValues: null,
+        },
+      });
+    };
+    window.addEventListener(
+      COUNTRY_MAP_STATE_SELECTED_EVENT,
+      clearDistrictFilter,
+    );
+    return () => {
+      window.removeEventListener(
+        COUNTRY_MAP_STATE_SELECTED_EVENT,
+        clearDistrictFilter,
+      );
+    };
+  }, [emitCrossFilters, selectedValuesKey, setDataMask]);
 
   React.useEffect(() => {
     if (geojsonCache[selectState]) return undefined;
@@ -224,22 +263,57 @@ export default function SupersetPluginChartCustomDistrictMap(
     div.selectAll('svg').remove();
 
     const format = getNumberFormatter(numberFormat);
-    const metricByDistrict: Record<string, number> = {};
-    data.forEach(d => {
-      metricByDistrict[d.district_id] = d.metric;
+    // Superset may reuse the data array while replacing its row contents.
+    // Reading from the serialized dependency guarantees a redraw uses the
+    // latest district and metric values after a cross-filter changes.
+    const chartData = JSON.parse(dataKey) as DistrictMapDataItem[];
+    const renderedMetrics: Record<string, number> = {};
+    chartData.forEach(d => {
+      renderedMetrics[d.district_id] = d.metric;
     });
+    const renderedExtent = d3.extent(chartData.map(d => d.metric));
+    const renderedColorExtent: [number, number] =
+      renderedExtent[0] != null && renderedExtent[1] != null
+        ? renderedExtent
+        : [0, 1];
 
-    const values = data.map(d => d.metric);
-    const rawExtent = d3.extent(values);
-    const colorExtent: [number, number] =
-      rawExtent[0] != null && rawExtent[1] != null ? rawExtent : [0, 1];
+    const selectedValues = JSON.parse(selectedValuesKey) as string[];
+    const hasSelection = selectedValues.length > 0;
+    const metricCacheKey = `${sliceId}:${selectState}`;
+    const cachedMetrics = metricCache[metricCacheKey];
+    let metricByDistrict = renderedMetrics;
+    let colorExtent = renderedColorExtent;
+
+    if (hasSelection) {
+      if (cachedMetrics) {
+        cachedMetrics.selectionActive = true;
+      } else {
+        metricCache[metricCacheKey] = {
+          metrics: renderedMetrics,
+          colorExtent: renderedColorExtent,
+          selectionActive: true,
+        };
+      }
+    } else if (cachedMetrics?.selectionActive) {
+      // Clearing a cross-filter can render once with the last selected query
+      // result before the unfiltered query completes. Restore the pre-click
+      // metrics during that transition.
+      cachedMetrics.selectionActive = false;
+      metricByDistrict = cachedMetrics.metrics;
+      colorExtent = cachedMetrics.colorExtent;
+    } else {
+      metricCache[metricCacheKey] = {
+        metrics: renderedMetrics,
+        colorExtent: renderedColorExtent,
+        selectionActive: false,
+      };
+    }
+
     const colorSchemeObj = getSequentialSchemeRegistry().get(linearColorScheme);
     const colorScale = colorSchemeObj
       ? colorSchemeObj.createLinearScale(colorExtent)
       : () => theme.colorBgContainer;
 
-    const selectedValues = filterState?.selectedValues ?? [];
-    const hasSelection = selectedValues.length > 0;
     const getFill = (feature: DistrictFeature) => {
       const value = metricByDistrict[feature.properties.district];
       return value === undefined
@@ -261,8 +335,35 @@ export default function SupersetPluginChartCustomDistrictMap(
       .attr('height', mapHeight)
       .attr('viewBox', `0 0 ${width} ${mapHeight}`);
 
-    const mapLayer = svg.append('g');
     const hoverPopup = div.append('div').attr('class', 'hover-popup');
+    const applyDistrictFilter = (values: string[]) => {
+      setDataMask({
+        extraFormData: {
+          filters: values.length
+            ? [{ col: entity, op: 'IN', val: values }]
+            : [],
+        },
+        filterState: {
+          value: values.length ? values : null,
+          selectedValues: values.length ? values : null,
+        },
+      });
+    };
+
+    svg
+      .append('rect')
+      .attr('class', 'map-background')
+      .attr('width', width)
+      .attr('height', mapHeight)
+      .attr('fill', 'transparent')
+      .style('pointer-events', 'all')
+      .on('click', () => {
+        if (!emitCrossFilters || !hasSelection) return;
+        hoverPopup.style('display', 'none');
+        applyDistrictFilter([]);
+      });
+
+    const mapLayer = svg.append('g');
 
     mapLayer
       .selectAll('path.district')
@@ -315,17 +416,7 @@ export default function SupersetPluginChartCustomDistrictMap(
         const districtName = feature.properties.district;
         const isDeselecting = selectedValues.includes(districtName);
         const values = isDeselecting ? [] : [districtName];
-        setDataMask({
-          extraFormData: {
-            filters: values.length
-              ? [{ col: entity, op: 'IN', val: values }]
-              : [],
-          },
-          filterState: {
-            value: values.length ? values : null,
-            selectedValues: values.length ? values : null,
-          },
-        });
+        applyDistrictFilter(values);
       });
 
     if (showDistrictLabels) {
@@ -346,14 +437,14 @@ export default function SupersetPluginChartCustomDistrictMap(
     };
   }, [
     geoData,
-    data,
+    dataKey,
     width,
     mapHeight,
     linearColorScheme,
     numberFormat,
     showDistrictLabels,
     entity,
-    filterState,
+    selectedValuesKey,
     emitCrossFilters,
     setDataMask,
     theme,
@@ -367,9 +458,11 @@ export default function SupersetPluginChartCustomDistrictMap(
         width={width}
         data-testid={sliceId}
       >
-        <div className="state-title">{stateLabel}</div>
+        {!noMapSelected && <div className="state-title">{stateLabel}</div>}
         <div className="message">
-          No map data available for the selected state.
+          {noMapSelected
+            ? 'Select a state to display its district map.'
+            : 'No map data available for the selected state.'}
         </div>
       </Styles>
     );

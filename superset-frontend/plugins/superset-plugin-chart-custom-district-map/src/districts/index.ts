@@ -56,6 +56,7 @@ const states: Record<string, string> = {
 };
 
 const stateLabels: Record<string, string> = {
+  no_map: 'No map',
   johor: 'Johor',
   kedah: 'Kedah',
   kelantan: 'Kelantan',
@@ -259,9 +260,12 @@ const districtsByState: Record<string, readonly string[]> = {
   ],
 };
 
-export const stateOptions: [string, string][] = Object.keys(states)
-  .map((key): [string, string] => [key, stateLabels[key]])
-  .sort((a, b) => a[1].localeCompare(b[1]));
+export const stateOptions: [string, string][] = [
+  ['no_map', stateLabels.no_map],
+  ...Object.keys(states)
+    .map((key): [string, string] => [key, stateLabels[key]])
+    .sort((a, b) => a[1].localeCompare(b[1])),
+];
 
 // Alternate names for states whose district data key doesn't match every
 // common spelling (e.g. the Malay name, or the name without its English

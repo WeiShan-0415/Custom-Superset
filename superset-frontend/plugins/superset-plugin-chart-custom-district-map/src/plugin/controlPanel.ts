@@ -57,11 +57,11 @@ const config: ControlPanelConfig = {
             config: {
               type: 'SelectControl',
               label: t('Default state'),
-              default: 'selangor',
+              default: 'no_map',
               choices: stateOptions,
               description: t(
                 'Which Malaysian state to plot when the state column above is unset, or the ' +
-                  'data spans more than one state.',
+                  'data spans more than one state. Choose No map to wait for a state filter.',
               ),
               validators: [validateNonEmpty],
             },
