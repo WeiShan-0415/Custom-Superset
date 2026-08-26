@@ -120,12 +120,25 @@ export default styled.div`
     }
 
     td.dt-is-filter:hover {
-      background-color: ${theme.colorFillContentHover};
+      box-shadow: none;
     }
 
     td.dt-is-active-filter,
     td.dt-is-active-filter:hover {
-      background-color: ${theme.colorFillContentHover};
+      border-right: 3px solid ${theme.colorText};
+      border-left: 3px solid ${theme.colorText};
+      box-shadow: none;
+    }
+
+    tbody tr:first-child td.dt-is-active-filter,
+    tbody tr:not(:has(td.dt-is-active-filter)) + tr td.dt-is-active-filter {
+      border-top: 3px solid ${theme.colorText};
+    }
+
+    tbody
+      tr:has(td.dt-is-active-filter):not(:has(+ tr td.dt-is-active-filter))
+      td.dt-is-active-filter {
+      border-bottom: 3px solid ${theme.colorText};
     }
 
     .dt-global-filter {

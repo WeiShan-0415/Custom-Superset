@@ -188,6 +188,55 @@ const percentMetricCalculationControl: ControlConfig<'SelectControl'> = {
   renderTrigger: false,
 };
 
+const columnConfigFormLayout = {
+  [GenericDataType.String]: [
+    ['visible'],
+    [
+      'columnWidth',
+      { name: 'horizontalAlign', override: { defaultValue: 'left' } },
+    ],
+    ['truncateLongCells'],
+  ],
+  [GenericDataType.Numeric]: [
+    {
+      tab: t('Column Settings'),
+      children: [
+        ['visible'],
+        [
+          'columnWidth',
+          { name: 'horizontalAlign', override: { defaultValue: 'right' } },
+        ],
+        ['showCellBars'],
+        ['alignPositiveNegative'],
+        ['colorPositiveNegative'],
+      ],
+    },
+    {
+      tab: t('Number formatting'),
+      children: [
+        ['d3NumberFormat'],
+        ['d3SmallNumberFormat'],
+        ['currencyFormat'],
+      ],
+    },
+  ],
+  [GenericDataType.Temporal]: [
+    ['visible'],
+    [
+      'columnWidth',
+      { name: 'horizontalAlign', override: { defaultValue: 'left' } },
+    ],
+    ['d3TimeFormat'],
+  ],
+  [GenericDataType.Boolean]: [
+    ['visible'],
+    [
+      'columnWidth',
+      { name: 'horizontalAlign', override: { defaultValue: 'left' } },
+    ],
+  ],
+};
+
 const processComparisonColumns = (columns: any[], suffix: string) =>
   columns.flatMap(col => {
     if (!col.label.includes(suffix)) {
@@ -562,6 +611,7 @@ const config: ControlPanelConfig = {
               width: 400,
               height: 320,
               renderTrigger: true,
+              configFormLayout: columnConfigFormLayout,
               shouldMapStateToProps() {
                 return true;
               },
