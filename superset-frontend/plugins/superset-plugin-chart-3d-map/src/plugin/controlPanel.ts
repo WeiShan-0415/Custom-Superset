@@ -41,6 +41,8 @@ const config: ControlPanelConfig = {
               validators: [validateNonEmpty],
               description: t(
                 'Column containing the Malaysian state/territory name (e.g. "Selangor", "Sabah"). ' +
+                  'The combined dataset must also expose event_type, event_time, title, severity, ' +
+                  'lat, lon, depth, magnitude, and location columns. ' +
                   'Clicking a state on the map filters this column; a dashboard filter that narrows ' +
                   'the data to one state flies the map into it.',
               ),

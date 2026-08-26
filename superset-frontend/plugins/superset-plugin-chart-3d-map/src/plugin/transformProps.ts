@@ -17,7 +17,7 @@
  * under the License.
  */
 import { ChartProps, getColumnLabel, getMetricLabel } from '@superset-ui/core';
-import { StateMapDataItem } from '../types';
+import { EarthquakeDataItem, StateMapDataItem } from '../types';
 import { normalizeStateKey } from '../districts';
 
 // A single state returned by the native dashboard-filtered query drives the
@@ -37,6 +37,25 @@ function deriveActiveStateKey(
   return normalizeStateKey(values[0]) ?? null;
 }
 
+function parseEventDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === '') return null;
+  const rawValue = String(value).trim();
+  const numericValue = Number(rawValue);
+  const date = /^\d+$/.test(rawValue)
+    ? new Date(
+        numericValue < 1_000_000_000_000 ? numericValue * 1000 : numericValue,
+      )
+    : new Date(rawValue);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isInCurrentYear(value: unknown, currentDate: Date): boolean {
+  const eventDate = parseEventDate(value);
+  return (
+    eventDate !== null && eventDate.getFullYear() === currentDate.getFullYear()
+  );
+}
+
 export default function transformProps(chartProps: ChartProps) {
   const {
     width,
@@ -52,14 +71,72 @@ export default function transformProps(chartProps: ChartProps) {
   const stateColumnLabel = getColumnLabel(stateColumn);
   const metricLabel = metric ? getMetricLabel(metric) : undefined;
   const rows = (queriesData[0]?.data ?? []) as Record<string, unknown>[];
+  const currentDate = new Date();
 
-  const data: StateMapDataItem[] = rows.map(row => {
+  // Earthquake rows carry no state info (they're global, not Malaysia-only)
+  // and reuse the `severity` column for a different scale, so they must be
+  // excluded from the state choropleth data.
+  const stateRows = rows.filter(
+    row =>
+      String(row.event_type ?? '')
+        .trim()
+        .toLowerCase() !== 'earthquake',
+  );
+
+  const data: StateMapDataItem[] = stateRows.map(row => {
     const rawValue = String(row[stateColumnLabel] ?? '');
     return {
       state_key: normalizeStateKey(rawValue) ?? '',
       raw_value: rawValue,
-      metric: metricLabel ? Number(row[metricLabel] ?? 0) : undefined,
+      metric:
+        metricLabel || row.severity !== undefined
+          ? Number(row[metricLabel ?? 'severity'] ?? 0)
+          : undefined,
     };
+  });
+
+  const earthquakes: EarthquakeDataItem[] = rows.flatMap(row => {
+    if (
+      String(row.event_type ?? '')
+        .trim()
+        .toLowerCase() !== 'earthquake' ||
+      !isInCurrentYear(row.event_time, currentDate)
+    ) {
+      return [];
+    }
+    const latitude = Number(row.lat);
+    const longitude = Number(row.lon);
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      return [];
+    }
+    const optionalNumber = (value: unknown): number | undefined => {
+      if (value === null || value === undefined || value === '')
+        return undefined;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const optionalString = (value: unknown): string | undefined =>
+      value === null || value === undefined || value === ''
+        ? undefined
+        : String(value);
+    return [
+      {
+        latitude,
+        longitude,
+        magnitude: optionalNumber(row.magnitude),
+        depth: optionalNumber(row.depth),
+        location: optionalString(row.location),
+        eventTime: optionalString(row.event_time),
+        title: optionalString(row.title),
+      },
+    ];
   });
 
   console.log('[3D Map] Transforming query response', {
@@ -74,7 +151,8 @@ export default function transformProps(chartProps: ChartProps) {
     width,
     height,
     data,
-    activeStateKey: deriveActiveStateKey(rows, stateColumnLabel),
+    earthquakes,
+    activeStateKey: deriveActiveStateKey(stateRows, stateColumnLabel),
     stateColumn: stateColumnLabel,
     showDistrictBorders,
     sliceId,

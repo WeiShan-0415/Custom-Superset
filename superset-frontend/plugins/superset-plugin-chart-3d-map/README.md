@@ -2,6 +2,18 @@
 
 This is the Superset Plugin Chart 3 D Map Superset Chart Plugin.
 
+The chart supports a combined state-warning and earthquake dataset. Select
+`state_name` as the state column and expose these columns from the dataset:
+
+- `event_type` (`weather_warning` or `earthquake`)
+- `event_time`, `title`, and `severity`
+- `lat`, `lon`, `depth`, `magnitude`, and `location`
+
+Rows with `event_type = 'earthquake'` and valid coordinates are rendered as
+magnitude-scaled points. Clicking a point shows its title, location, magnitude,
+depth, and event time. Warning rows continue to color Malaysian state polygons;
+their `severity` value is used when no chart metric is selected.
+
 ### Usage
 
 To build the plugin, run the following commands:

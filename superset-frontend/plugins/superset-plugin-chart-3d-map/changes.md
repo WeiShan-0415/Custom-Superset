@@ -630,3 +630,67 @@ plugin's 14 Jest tests, TypeScript declaration build, and lint all complete succ
 The build still prints non-failing Browserslist database and translation initialization warnings.
 
 The Superset application health check at `http://localhost:8088/health` could not run because the local server was not available in this environment; behavior in the actual dashboard (map rendering, click-to-filter, fly-to-state, clearing filters) was verified interactively by the user in their own running instance.
+
+## Feature: earthquake point layer for combined event datasets
+
+Extended the map to render earthquake events alongside the existing Malaysian
+state-warning polygons.
+
+- Updated the chart query to request the combined dataset's `event_type`,
+  `event_time`, `title`, `severity`, `lat`, `lon`, `depth`, `magnitude`, and
+  `location` columns in addition to the configured state column.
+- Added earthquake-row transformation with numeric conversion and coordinate
+  validation. Rows with missing or out-of-range latitude/longitude values are
+  excluded from the point layer.
+- Added a MapLibre GeoJSON source and circle layer for rows where
+  `event_type = 'earthquake'`.
+- Scaled earthquake marker size and color by magnitude and added a white marker
+  outline for visibility against the base map.
+- Added click popups showing the earthquake title, location, magnitude, depth,
+  and event time. Popup content uses DOM text nodes so dataset values are not
+  interpreted as HTML.
+- Removed the Malaysia-only pan restriction so earthquakes outside the country
+  remain reachable while preserving Malaysia as the initial/default view.
+- Used the dataset's `severity` column for state coloring when no optional chart
+  metric is configured.
+- Documented the combined dataset schema in `README.md` and added focused query
+  and transform-props tests for earthquake data.
+- Fixed a source-initialization race where earthquake data could be processed
+  before the asynchronously loaded district geometry created the MapLibre
+  source, leaving the point layer empty until another chart update.
+- Set an explicit dark popup text color so earthquake details remain readable
+  when the chart is displayed in a dark-themed dashboard.
+- Formatted numeric Unix event timestamps as readable local date/time values in
+  earthquake popups using `DD/MM/YYYY HH:mm:ss`.
+- Hid the state-warning fill layer when filtering leaves only earthquake rows,
+  and fixed its asynchronous initialization dependency so the empty state is
+  applied as soon as the district layers become available.
+- Limited earthquake markers to events whose `event_time` falls within the
+  viewer's current calendar year; warning rows are not affected.
+
+## Fix: earthquake rows polluted the state choropleth data
+
+**Symptom:** with the combined weather-warning/earthquake dataset (earthquake
+rows carry no state, and can be outside Malaysia entirely), `transformProps`
+built the state-choropleth `data` array from every row returned by the query,
+not just the weather-warning ones.
+
+**Cause:** earthquake rows have `NULL` state columns, so mapping over them
+for `data` produced junk entries with an empty `state_key`. Both event types
+also share the `severity` column on different scales (weather-warning
+severity vs. an earthquake-magnitude-derived value), so with no optional
+chart metric configured, an earthquake row's `severity` could leak into the
+state color badges.
+
+**Fix:** `transformProps.ts` now filters out `event_type === 'earthquake'`
+rows before building the state `data` array and before deriving
+`activeStateKey`, mirroring the existing `event_type === 'earthquake'` filter
+already used to build the `earthquakes` point-layer array. Weather-warning
+rows (or any row not tagged `earthquake`) still populate the choropleth as
+before, and non-Malaysia earthquakes still populate the point layer via the
+already-existing `earthquakes` filter, which has no Malaysia-only
+restriction.
+
+**Tests:** added a `transformProps.test.ts` case with mixed weather-warning
+and earthquake rows in one query response, asserting the state `data` array
+and `activeStateKey` ignore the earthquake row entirely.

@@ -43,10 +43,21 @@ export interface StateMapDataItem {
   metric?: number;
 }
 
+export interface EarthquakeDataItem {
+  latitude: number;
+  longitude: number;
+  magnitude?: number;
+  depth?: number;
+  location?: string;
+  eventTime?: string;
+  title?: string;
+}
+
 export type SupersetPluginChart3DMapProps =
   SupersetPluginChart3DMapStylesProps &
     Omit<SupersetPluginChart3DMapCustomizeProps, 'stateColumn' | 'metric'> & {
       data: StateMapDataItem[];
+      earthquakes: EarthquakeDataItem[];
       activeStateKey: string | null;
       stateColumn: string;
       sliceId: number;

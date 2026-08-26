@@ -23,6 +23,7 @@
 // workaround in SupersetPluginChartCustomDistrictMap.tsx.
 // eslint-disable-next-line no-restricted-syntax
 import React from 'react';
+import type { FeatureCollection, Point } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { styled } from '@apache-superset/core/theme';
@@ -30,7 +31,7 @@ import {
   AllDistrictsFeatureCollection,
   loadAllDistricts,
 } from './geo/loadDistricts';
-import { BBox, MALAYSIA_PAN_BOUNDS } from './geo/bounds';
+import { MALAYSIA_PAN_BOUNDS } from './geo/bounds';
 import { computeStateCentroids } from './geo/centroids';
 import {
   SupersetPluginChart3DMapProps,
@@ -42,14 +43,14 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
   height: ${({ height }) => height}px;
   width: ${({ width }) => width}px;
   overflow: hidden;
+
+  .maplibregl-popup-content {
+    color: #1f2937;
+  }
 `;
 
 const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const MALAYSIA_CENTER: [number, number] = [109.5, 3.5];
-// Padded a little wider than the district data's own extent so panning to
-// the edge of the allowed area doesn't reveal a hard cutoff.
-const MAP_PAN_BOUNDS: BBox = [93.5, -4.5, 124.5, 12.5];
-
 // AWS's public "Terrarium" elevation tiles (s3://elevation-tiles-prod,
 // part of the AWS Open Data program): free, keyless, no signup — chosen
 // over Mapbox/MapTiler terrain-rgb sources for the same "no token needed"
@@ -64,6 +65,8 @@ const SEVERITY_MODERATE_COLOR = '#f4c430';
 const SEVERITY_HIGH_COLOR = '#e63946';
 const FILTERED_OUT_STATE_COLOR = 'rgba(0, 0, 0, 0)';
 const DISTRICT_BORDER_COLOR = '#ffffff';
+const EARTHQUAKE_SOURCE_ID = 'earthquakes';
+const EARTHQUAKE_LAYER_ID = 'earthquake-points';
 
 // Pitch is purely a function of the current zoom level (not of which state
 // is "active"), so it stays correct whether the camera got there via a
@@ -79,6 +82,25 @@ function pitchForZoom(zoom: number): number {
   if (zoom >= MAX_PITCH_ZOOM) return MAX_PITCH;
   const t = (zoom - MIN_PITCH_ZOOM) / (MAX_PITCH_ZOOM - MIN_PITCH_ZOOM);
   return MAX_PITCH * t;
+}
+
+function formatEventTime(value: unknown): string {
+  const rawValue = String(value ?? '');
+  if (!/^\d+$/.test(rawValue)) return rawValue;
+  const timestamp = Number(rawValue);
+  if (!Number.isFinite(timestamp)) return rawValue;
+  // Superset commonly serializes temporal values as Unix milliseconds. Also
+  // accept Unix seconds for datasets that expose epoch values directly.
+  const date = new Date(
+    timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp,
+  );
+  if (Number.isNaN(date.getTime())) return rawValue;
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${pad(date.getDate())}/${pad(
+    date.getMonth() + 1,
+  )}/${date.getFullYear()} ${pad(date.getHours())}:${pad(
+    date.getMinutes(),
+  )}:${pad(date.getSeconds())}`;
 }
 
 function buildFillColorExpression(
@@ -107,7 +129,14 @@ function buildFillColorExpression(
 export default function SupersetPluginChart3DMap(
   props: SupersetPluginChart3DMapProps,
 ) {
-  const { data, height, width, activeStateKey, showDistrictBorders } = props;
+  const {
+    data,
+    earthquakes,
+    height,
+    width,
+    activeStateKey,
+    showDistrictBorders,
+  } = props;
 
   const rootElem = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<maplibregl.Map | null>(null);
@@ -136,7 +165,6 @@ export default function SupersetPluginChart3DMap(
       zoom: 5.5,
       pitch: 0,
       bearing: 0,
-      maxBounds: MAP_PAN_BOUNDS,
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }));
     map.addControl(new maplibregl.ScaleControl());
@@ -250,6 +278,77 @@ export default function SupersetPluginChart3DMap(
       paint: { 'line-color': DISTRICT_BORDER_COLOR, 'line-width': 0.5 },
     });
 
+    map.addSource(EARTHQUAKE_SOURCE_ID, {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+    map.addLayer({
+      id: EARTHQUAKE_LAYER_ID,
+      type: 'circle',
+      source: EARTHQUAKE_SOURCE_ID,
+      paint: {
+        'circle-radius': [
+          'interpolate',
+          ['linear'],
+          ['coalesce', ['get', 'magnitude'], 0],
+          0,
+          4,
+          4,
+          7,
+          6,
+          13,
+          8,
+          22,
+        ],
+        'circle-color': [
+          'interpolate',
+          ['linear'],
+          ['coalesce', ['get', 'magnitude'], 0],
+          0,
+          '#f4c430',
+          5,
+          '#f97316',
+          7,
+          '#e63946',
+        ],
+        'circle-opacity': 0.85,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.5,
+      },
+    });
+
+    map.on('mouseenter', EARTHQUAKE_LAYER_ID, () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', EARTHQUAKE_LAYER_ID, () => {
+      map.getCanvas().style.cursor = '';
+    });
+    map.on('click', EARTHQUAKE_LAYER_ID, event => {
+      const feature = event.features?.[0];
+      const geometry = feature?.geometry;
+      if (!feature || geometry?.type !== 'Point') return;
+      const properties = feature.properties ?? {};
+      const content = document.createElement('div');
+      const heading = document.createElement('strong');
+      heading.textContent = String(properties.title || 'Earthquake');
+      content.appendChild(heading);
+      [
+        ['Location', properties.location],
+        ['Magnitude', properties.magnitude],
+        ['Depth', properties.depth != null ? `${properties.depth} km` : null],
+        ['Time', formatEventTime(properties.eventTime)],
+      ].forEach(([label, value]) => {
+        if (value === null || value === undefined || value === '') return;
+        const line = document.createElement('div');
+        line.textContent = `${label}: ${value}`;
+        content.appendChild(line);
+      });
+      new maplibregl.Popup()
+        .setLngLat((geometry as Point).coordinates as [number, number])
+        .setDOMContent(content)
+        .addTo(map);
+    });
+
     // Keep 3D buildings disabled, including any extrusion layers supplied
     // by the base map style. Terrain remains available independently.
     map
@@ -272,11 +371,42 @@ export default function SupersetPluginChart3DMap(
     );
     map.setPaintProperty('districts-fill', 'fill-opacity', 0.6);
     map.setLayoutProperty(
+      'districts-fill',
+      'visibility',
+      data.length > 0 ? 'visible' : 'none',
+    );
+    map.setLayoutProperty(
       'districts-line',
       'visibility',
       showDistrictBorders ? 'visible' : 'none',
     );
-  }, [data, showDistrictBorders, mapLoaded]);
+  }, [data, showDistrictBorders, mapLoaded, districtsFC]);
+
+  React.useEffect(() => {
+    const map = mapRef.current;
+    const source = map?.getSource(
+      EARTHQUAKE_SOURCE_ID,
+    ) as maplibregl.GeoJSONSource | null;
+    if (!source) return;
+    const featureCollection: FeatureCollection<Point> = {
+      type: 'FeatureCollection',
+      features: earthquakes.map(earthquake => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [earthquake.longitude, earthquake.latitude],
+        },
+        properties: {
+          magnitude: earthquake.magnitude,
+          depth: earthquake.depth,
+          location: earthquake.location,
+          eventTime: earthquake.eventTime,
+          title: earthquake.title,
+        },
+      })),
+    };
+    source.setData(featureCollection);
+  }, [earthquakes, mapLoaded, districtsFC]);
 
   // Fly/zoom the camera to the active state (or back out to the whole
   // country). The `zoomend` listener above derives pitch after the camera

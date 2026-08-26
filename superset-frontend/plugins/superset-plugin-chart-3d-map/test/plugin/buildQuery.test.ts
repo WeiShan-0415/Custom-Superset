@@ -26,10 +26,21 @@ describe('SupersetPluginChart3DMap buildQuery', () => {
     viz_type: 'my_chart',
   };
 
-  it('should groupby the state column', () => {
+  it('should request the state and event columns', () => {
     const queryContext = buildQuery(formData);
     const [query] = queryContext.queries;
-    expect(query.groupby).toEqual(['state_name']);
+    expect(query.groupby).toEqual([
+      'state_name',
+      'event_type',
+      'event_time',
+      'title',
+      'severity',
+      'lat',
+      'lon',
+      'depth',
+      'magnitude',
+      'location',
+    ]);
   });
 
   it('should include the metric when one is set', () => {

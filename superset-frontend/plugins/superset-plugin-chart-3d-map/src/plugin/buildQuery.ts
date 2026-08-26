@@ -20,10 +20,21 @@ import { buildQueryContext, QueryFormData } from '@superset-ui/core';
 
 export default function buildQuery(formData: QueryFormData) {
   const { state_column: stateColumn, metric } = formData;
+  const eventColumns = [
+    'event_type',
+    'event_time',
+    'title',
+    'severity',
+    'lat',
+    'lon',
+    'depth',
+    'magnitude',
+    'location',
+  ];
   return buildQueryContext(formData, baseQueryObject => [
     {
       ...baseQueryObject,
-      groupby: [stateColumn],
+      groupby: [stateColumn, ...eventColumns],
       metrics: metric ? [metric] : [],
     },
   ]);
