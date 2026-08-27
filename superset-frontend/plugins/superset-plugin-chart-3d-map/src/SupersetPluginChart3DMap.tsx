@@ -77,6 +77,17 @@ const MAX_PITCH_ZOOM = 14;
 const MAX_PITCH = 60;
 const FILTERED_STATE_ZOOM = 7.5;
 
+type ImageExportContainer = HTMLDivElement & {
+  _prepareForImageExport?: () => Promise<void>;
+};
+type ImageExportCanvas = HTMLCanvasElement & {
+  _imageExportSnapshot?: string;
+};
+type CompatibleMapOptions = maplibregl.MapOptions & {
+  // MapLibre releases before canvasContextAttributes used this top-level key.
+  preserveDrawingBuffer: boolean;
+};
+
 function pitchForZoom(zoom: number): number {
   if (zoom <= MIN_PITCH_ZOOM) return 0;
   if (zoom >= MAX_PITCH_ZOOM) return MAX_PITCH;
@@ -158,14 +169,43 @@ export default function SupersetPluginChart3DMap(
   React.useEffect(() => {
     const container = rootElem.current;
     if (!container) return undefined;
-    const map = new maplibregl.Map({
+    const mapOptions: CompatibleMapOptions = {
       container,
       style: MAP_STYLE_URL,
       center: MALAYSIA_CENTER,
       zoom: 5.5,
       pitch: 0,
       bearing: 0,
-    });
+      // Dashboard image export copies the rendered WebGL canvas. Keep its
+      // pixels available after compositing so the map is present in the JPEG.
+      preserveDrawingBuffer: true,
+      canvasContextAttributes: { preserveDrawingBuffer: true },
+    };
+    const map = new maplibregl.Map(mapOptions);
+    const exportContainer = container as ImageExportContainer;
+    exportContainer.dataset.imageExportRenderer = 'maplibre';
+    exportContainer._prepareForImageExport = () =>
+      new Promise<void>(resolve => {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const finish = () => {
+          clearTimeout(timeoutId);
+          map.off('render', finish);
+          const canvas = map.getCanvas() as ImageExportCanvas;
+          try {
+            // Read the framebuffer synchronously during MapLibre's render
+            // event. Waiting until a later animation frame can allow WebGL to
+            // present or clear it before the dashboard exporter reads it.
+            canvas._imageExportSnapshot = canvas.toDataURL('image/png');
+          } catch {
+            delete canvas._imageExportSnapshot;
+          } finally {
+            resolve();
+          }
+        };
+        timeoutId = setTimeout(finish, 1000);
+        map.once('render', finish);
+        map.triggerRepaint();
+      });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }));
     map.addControl(new maplibregl.ScaleControl());
     // Default mouse-wheel zoom rate (1/450 per line) feels sluggish at
@@ -183,6 +223,7 @@ export default function SupersetPluginChart3DMap(
     map.on('zoomend', () => map.setPitch(pitchForZoom(map.getZoom())));
     mapRef.current = map;
     return () => {
+      delete exportContainer._prepareForImageExport;
       map.remove();
       mapRef.current = null;
       layersReadyRef.current = false;

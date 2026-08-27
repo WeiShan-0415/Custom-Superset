@@ -615,6 +615,58 @@ test('captures JPEG for non-ag-grid elements via the clone path', async () => {
   document.body.removeChild(container);
 });
 
+test('preserves map renderer dimensions in the clone path', async () => {
+  const toDataUrl = jest
+    .spyOn(HTMLCanvasElement.prototype, 'toDataURL')
+    .mockReturnValue('data:image/png;base64,map');
+  const container = document.createElement('div');
+  const map = document.createElement('div');
+  map.className = 'maplibregl-map';
+  map.style.height = '400px';
+  map.style.width = '600px';
+  map.style.overflow = 'hidden';
+  map.dataset.imageExportRenderer = 'maplibre';
+  const prepareForExport = jest.fn().mockResolvedValue(undefined);
+  (
+    map as HTMLElement & {
+      _prepareForImageExport?: () => Promise<void>;
+    }
+  )._prepareForImageExport = prepareForExport;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'maplibregl-canvas';
+  canvas.style.height = '400px';
+  canvas.style.width = '600px';
+  (
+    canvas as HTMLCanvasElement & {
+      _imageExportSnapshot?: string;
+    }
+  )._imageExportSnapshot = 'data:image/png;base64,rendered-map';
+  map.appendChild(canvas);
+  container.appendChild(map);
+  document.body.appendChild(container);
+
+  mockToJpeg.mockImplementation((clone: HTMLElement) => {
+    const clonedMap = clone.querySelector('.maplibregl-map') as HTMLElement;
+    const canvasSnapshot = clone.querySelector(
+      '.maplibregl-canvas',
+    ) as HTMLImageElement;
+    expect(clonedMap.style.height).toBe('400px');
+    expect(clonedMap.style.overflow).toBe('hidden');
+    expect(canvasSnapshot).toBeInstanceOf(HTMLImageElement);
+    expect(canvasSnapshot.src).toBe('data:image/png;base64,rendered-map');
+    expect(canvasSnapshot.style.height).toBe('400px');
+    return Promise.resolve('data:image/jpeg;base64,test');
+  });
+
+  const handler = downloadAsImageOptimized('div', 'Map Chart');
+  await handler(syntheticEventFor(container));
+
+  expect(prepareForExport).toHaveBeenCalledTimes(1);
+  expect(toDataUrl).not.toHaveBeenCalled();
+  toDataUrl.mockRestore();
+  document.body.removeChild(container);
+});
+
 test('shows warning toast when clone capture throws', async () => {
   mockToJpeg.mockRejectedValue(new Error('clone capture failed'));
   const container = document.createElement('div');

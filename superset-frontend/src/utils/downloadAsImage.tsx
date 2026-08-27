@@ -27,9 +27,17 @@ import type { AgGridContainerElement } from '@superset-ui/core/components';
 const IMAGE_DOWNLOAD_QUALITY = 0.95;
 const TRANSPARENT_RGBA = 'transparent';
 const POLL_INTERVAL_MS = 100;
+const MAP_RENDERER_SELECTOR =
+  '.maplibregl-map, .mapboxgl-map, .deckgl, .deck-gl';
 
 // Tracks original cell styles to restore after capture
 type CellFixup = { el: HTMLElement; minHeight: string; overflow: string };
+type ImageExportRendererElement = HTMLElement & {
+  _prepareForImageExport?: () => Promise<void>;
+};
+type ImageExportCanvasElement = HTMLCanvasElement & {
+  _imageExportSnapshot?: string;
+};
 
 /**
  * generate a consistent file stem from a description and date
@@ -142,8 +150,10 @@ const copyAllComputedStyles = (
 
 const processCloneForVisibility = (clone: HTMLElement) => {
   const cloneStyle = clone.style;
-  cloneStyle.height = 'auto';
-  cloneStyle.maxHeight = 'none';
+  if (!clone.matches(MAP_RENDERER_SELECTOR)) {
+    cloneStyle.height = 'auto';
+    cloneStyle.maxHeight = 'none';
+  }
 
   const scrollableSelectors = [
     '[style*="overflow"]',
@@ -164,6 +174,11 @@ const processCloneForVisibility = (clone: HTMLElement) => {
   scrollableSelectors.forEach(selector => {
     clone.querySelectorAll(selector).forEach(el => {
       const element = el as HTMLElement;
+      // WebGL map renderers require their captured pixel dimensions. Expanding
+      // these elements like scrollable tables clears or stretches the canvas.
+      if (element.matches('canvas') || element.closest(MAP_RENDERER_SELECTOR)) {
+        return;
+      }
       element.style.overflow = 'visible';
       element.style.height = 'auto';
       element.style.maxHeight = 'none';
@@ -227,14 +242,46 @@ const preserveCanvasContent = (original: Element, clone: Element) => {
   originalCanvases.forEach((originalCanvas, i) => {
     if (originalCanvases[i] && clonedCanvases[i]) {
       const clonedCanvas = clonedCanvases[i] as HTMLCanvasElement;
-      const ctx = clonedCanvas.getContext('2d');
-      if (ctx) {
-        clonedCanvas.width = originalCanvas.width;
-        clonedCanvas.height = originalCanvas.height;
-        ctx.drawImage(originalCanvas, 0, 0);
+      const exportCanvas = originalCanvas as ImageExportCanvasElement;
+      try {
+        // dom-to-image clones nodes again while serializing them. Replacing the
+        // cloned canvas with a regular image prevents WebGL pixels from being
+        // discarded during that second clone.
+        const snapshot = document.createElement('img');
+        snapshot.src =
+          exportCanvas._imageExportSnapshot ??
+          originalCanvas.toDataURL('image/png');
+        delete exportCanvas._imageExportSnapshot;
+        snapshot.alt = '';
+        snapshot.className = clonedCanvas.className;
+        snapshot.style.cssText = clonedCanvas.style.cssText;
+        snapshot.width = originalCanvas.width;
+        snapshot.height = originalCanvas.height;
+        clonedCanvas.replaceWith(snapshot);
+      } catch {
+        delete exportCanvas._imageExportSnapshot;
+        // Retain the 2D-copy fallback for canvases that cannot produce a data
+        // URL, such as content rendered from a source without CORS permission.
+        const ctx = clonedCanvas.getContext('2d');
+        if (ctx) {
+          clonedCanvas.width = originalCanvas.width;
+          clonedCanvas.height = originalCanvas.height;
+          ctx.drawImage(originalCanvas, 0, 0);
+        }
       }
     }
   });
+};
+
+const prepareRenderersForImageExport = async (root: Element) => {
+  const renderers = [
+    ...(root.matches('[data-image-export-renderer]') ? [root] : []),
+    ...root.querySelectorAll('[data-image-export-renderer]'),
+  ] as ImageExportRendererElement[];
+
+  await Promise.all(
+    renderers.map(renderer => renderer._prepareForImageExport?.()),
+  );
 };
 
 const createEnhancedClone = (
@@ -461,6 +508,7 @@ export default function downloadAsImageOptimized(
     let cleanup: (() => void) | null = null;
 
     try {
+      await prepareRenderersForImageExport(elementToPrint);
       const { clone, cleanup: cleanupFn } = createEnhancedClone(
         elementToPrint,
         theme,
