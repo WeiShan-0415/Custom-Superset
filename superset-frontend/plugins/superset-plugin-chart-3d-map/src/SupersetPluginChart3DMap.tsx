@@ -271,11 +271,9 @@ export default function SupersetPluginChart3DMap(
       encoding: 'terrarium',
       maxzoom: 15,
     });
-    // Terrain starts off; the map's own TerrainControl button (added at
-    // init) turns it on. `map` fires a 'terrain' event whenever it's
-    // toggled — either that way or programmatically — which is used below
-    // to keep the hillshade layer's visibility in sync, so shading doesn't
-    // linger once terrain itself is switched off.
+    // `map` fires a 'terrain' event whenever terrain is toggled — either
+    // through the map's TerrainControl or programmatically — which keeps the
+    // hillshade layer's visibility in sync.
     map.on('terrain', () => {
       map.setLayoutProperty(
         'hillshade',
@@ -298,11 +296,15 @@ export default function SupersetPluginChart3DMap(
         id: 'hillshade',
         type: 'hillshade',
         source: 'terrain-dem',
-        layout: { visibility: 'none' },
+        layout: { visibility: 'visible' },
         paint: { 'hillshade-exaggeration': 0.5 },
       },
       waterLayer?.id ?? styleLayers[0]?.id,
     );
+    map.setTerrain({
+      source: 'terrain-dem',
+      exaggeration: TERRAIN_EXAGGERATION,
+    });
 
     map.addSource('districts', { type: 'geojson', data: districtsFC });
     map.addLayer({
