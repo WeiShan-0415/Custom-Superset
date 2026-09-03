@@ -57,15 +57,8 @@ function isInCurrentYear(value: unknown, currentDate: Date): boolean {
 }
 
 export default function transformProps(chartProps: ChartProps) {
-  const {
-    width,
-    height,
-    formData,
-    queriesData,
-    hooks,
-    filterState,
-    emitCrossFilters,
-  } = chartProps;
+  const { width, height, formData, queriesData, hooks, emitCrossFilters } =
+    chartProps;
   const { stateColumn, metric, showDistrictBorders, sliceId } = formData;
 
   const stateColumnLabel = getColumnLabel(stateColumn);
@@ -85,9 +78,16 @@ export default function transformProps(chartProps: ChartProps) {
 
   const data: StateMapDataItem[] = stateRows.map(row => {
     const rawValue = String(row[stateColumnLabel] ?? '');
+    const title = String(row.title ?? '').trim().toLowerCase();
+    const eventTime = String(row.event_time ?? '').trim();
     return {
       state_key: normalizeStateKey(rawValue) ?? '',
       raw_value: rawValue,
+      eventType: String(row.event_type ?? '')
+        .trim()
+        .toLowerCase(),
+      ...(title ? { title } : {}),
+      ...(eventTime ? { eventTime } : {}),
       metric:
         metricLabel || row.severity !== undefined
           ? Number(row[metricLabel ?? 'severity'] ?? 0)
@@ -137,14 +137,6 @@ export default function transformProps(chartProps: ChartProps) {
         title: optionalString(row.title),
       },
     ];
-  });
-
-  console.log('[3D Map] Transforming query response', {
-    sliceId,
-    stateColumnLabel,
-    filterState,
-    rows,
-    transformedData: data,
   });
 
   return {

@@ -40,6 +40,9 @@ export type SupersetPluginChart3DMapQueryFormData = QueryFormData &
 export interface StateMapDataItem {
   state_key: string;
   raw_value: string;
+  eventType: string;
+  title?: string;
+  eventTime?: string;
   metric?: number;
 }
 

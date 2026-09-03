@@ -49,8 +49,18 @@ describe('SupersetPluginChart3DMap transformProps', () => {
       width: 800,
       height: 600,
       data: [
-        { state_key: 'selangor', raw_value: 'Selangor', metric: undefined },
-        { state_key: 'johor', raw_value: 'Johor', metric: undefined },
+        {
+          state_key: 'selangor',
+          raw_value: 'Selangor',
+          eventType: '',
+          metric: undefined,
+        },
+        {
+          state_key: 'johor',
+          raw_value: 'Johor',
+          eventType: '',
+          metric: undefined,
+        },
       ],
       earthquakes: [],
       activeStateKey: null,
@@ -73,7 +83,47 @@ describe('SupersetPluginChart3DMap transformProps', () => {
       queriesData: [{ data: [{ state_name: 'Selangor', disaster_count: 3 }] }],
     });
     expect(transformProps(chartProps).data).toEqual([
-      { state_key: 'selangor', raw_value: 'Selangor', metric: 3 },
+      {
+        state_key: 'selangor',
+        raw_value: 'Selangor',
+        eventType: '',
+        metric: 3,
+      },
+    ]);
+  });
+
+  it('should preserve warning titles for map hazard filtering', () => {
+    const chartProps = new ChartProps({
+      formData,
+      width: 800,
+      height: 600,
+      theme: supersetTheme,
+      hooks: { setDataMask },
+      filterState: {},
+      queriesData: [
+        {
+          data: [
+            {
+              event_type: 'weather_warning',
+              state_name: 'Terengganu',
+              title: 'Strong Winds and Rough Seas Warning',
+              event_time: '2026-08-18 00:00:00',
+              severity: 1,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(transformProps(chartProps).data).toEqual([
+      {
+        state_key: 'terengganu',
+        raw_value: 'Terengganu',
+        eventType: 'weather_warning',
+        title: 'strong winds and rough seas warning',
+        eventTime: '2026-08-18 00:00:00',
+        metric: 1,
+      },
     ]);
   });
 
@@ -188,7 +238,12 @@ describe('SupersetPluginChart3DMap transformProps', () => {
 
     const result = transformProps(chartProps);
     expect(result.data).toEqual([
-      { state_key: 'selangor', raw_value: 'Selangor', metric: undefined },
+      {
+        state_key: 'selangor',
+        raw_value: 'Selangor',
+        eventType: 'weather_warning',
+        metric: undefined,
+      },
     ]);
     expect(result.activeStateKey).toBe('selangor');
   });

@@ -87,11 +87,28 @@ export const stateOptions: [string, string][] = Object.keys(states)
 const STATE_ALIASES: Record<string, string> = {
   melaka: 'malacca',
   'pulau pinang': 'penang',
+  'my-01': 'johor',
+  'my-02': 'kedah',
+  'my-03': 'kelantan',
+  'my-04': 'malacca',
+  'my-05': 'negeri_sembilan',
+  'my-06': 'pahang',
+  'my-07': 'penang',
+  'my-08': 'perak',
+  'my-09': 'perlis',
+  'my-10': 'selangor',
+  'my-11': 'terengganu',
+  'my-12': 'sabah',
+  'my-13': 'sarawak',
+  'my-14': 'kuala_lumpur',
+  'my-15': 'labuan',
+  'my-16': 'putrajaya',
 };
 
 // Matches a free-text state value (e.g. from a "state_name" data column, or
 // a district GeoJSON feature's own `properties.state`) to one of the state
-// keys above, trying an exact key match, a known alias, then a
+// keys above, trying an exact key match, a known alias (including MY state
+// codes), then a
 // case-insensitive label match. Returns undefined if none of the 16 states
 // match.
 export function normalizeStateKey(value: string): string | undefined {

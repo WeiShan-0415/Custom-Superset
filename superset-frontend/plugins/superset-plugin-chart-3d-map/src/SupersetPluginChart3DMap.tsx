@@ -27,6 +27,7 @@ import type { FeatureCollection, Point } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { styled } from '@apache-superset/core/theme';
+import { Checkbox, Switch } from '@superset-ui/core/components';
 import {
   AllDistrictsFeatureCollection,
   loadAllDistricts,
@@ -38,11 +39,166 @@ import {
   SupersetPluginChart3DMapStylesProps,
 } from './types';
 
+// The fixed light cartographic palette keeps map controls and hazard semantics
+// legible independently of the surrounding dashboard theme.
+// eslint-disable-next-line theme-colors/no-literal-colors
 const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
-  position: relative;
+  display: flex;
+  flex-direction: column;
   height: ${({ height }) => height}px;
   width: ${({ width }) => width}px;
   overflow: hidden;
+  color: #1f2937;
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  border-radius: ${({ theme }) => theme.borderRadiusLG}px;
+
+  .hazard-map-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 ${({ theme }) => theme.sizeUnit * 3}px;
+    border-bottom: 1px solid #d1d5db;
+    background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%);
+  }
+
+  .hazard-map-title {
+    margin: 0;
+    font-size: ${({ theme }) => theme.fontSizeLG}px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
+  }
+
+  .hazard-map-tabs {
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.sizeUnit * 3}px;
+  }
+
+  .hazard-map-view-toggle {
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.sizeUnit}px;
+    color: #475569;
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+  }
+
+  .hazard-map-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) ${({ width }) =>
+        width >= 720 ? '190px' : '0'};
+    align-items: stretch;
+    min-height: 0;
+    flex: 1;
+  }
+
+  .hazard-map-map {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .hazard-map-canvas {
+    position: absolute;
+    inset: 0;
+  }
+
+  .hazard-map-sidebar {
+    display: ${({ width }) => (width >= 720 ? 'flex' : 'none')};
+    align-self: stretch;
+    box-sizing: border-box;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.sizeUnit * 2}px;
+    height: 100%;
+    overflow-y: auto;
+    padding: ${({ theme }) => theme.sizeUnit * 2}px;
+    background: #f8fafc;
+    border-left: 1px solid #d1d5db;
+  }
+
+  .hazard-map-panel {
+    padding: ${({ theme }) => theme.sizeUnit * 2}px;
+    border: 1px solid #d1d5db;
+    border-radius: ${({ theme }) => theme.borderRadius}px;
+    background: #fff;
+  }
+
+  .hazard-map-panel-title {
+    margin-bottom: ${({ theme }) => theme.sizeUnit * 2}px;
+    color: #475569;
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+  }
+
+  .hazard-map-option,
+  .hazard-map-legend-row {
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.sizeUnit * 2}px;
+    min-height: 28px;
+    color: #1f2937;
+    white-space: nowrap;
+  }
+
+  .hazard-map-option .ant-checkbox-wrapper,
+  .hazard-map-option .ant-checkbox-wrapper span:last-child {
+    color: #1f2937;
+  }
+
+  .hazard-map-icon {
+    width: 20px;
+    text-align: center;
+    font-size: 18px;
+  }
+
+  .hazard-map-swatch {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+    border: 1px solid #fff;
+    border-radius: 50%;
+  }
+
+  .hazard-map-magnitudes {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 48px;
+  }
+
+  .hazard-map-magnitude {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: ${({ theme }) => theme.sizeUnit}px;
+    color: #475569;
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+  }
+
+  .hazard-map-magnitude-dot {
+    background: #8557c7;
+    border: 1px solid #d8c5ff;
+    border-radius: 50%;
+  }
+
+  .hazard-map-empty {
+    color: #64748b;
+    line-height: 1.4;
+  }
+
+  .hazard-map-status {
+    position: absolute;
+    right: ${({ theme }) => theme.sizeUnit * 2}px;
+    bottom: ${({ theme }) => theme.sizeUnit * 2}px;
+    z-index: 2;
+    padding: ${({ theme }) => theme.sizeUnit}px
+      ${({ theme }) => theme.sizeUnit * 2}px;
+    color: #1f2937;
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+    background: rgb(255 255 255 / 88%);
+    border: 1px solid #d1d5db;
+    box-shadow: 0 1px 3px rgb(15 23 42 / 16%);
+    border-radius: ${({ theme }) => theme.borderRadius}px;
+  }
 
   .maplibregl-popup-content {
     color: #1f2937;
@@ -62,11 +218,65 @@ const TERRAIN_EXAGGERATION = 1.5;
 
 const SEVERITY_NONE_COLOR = '#2ca25f';
 const SEVERITY_MODERATE_COLOR = '#f4c430';
+const SEVERITY_WARNING_COLOR = '#f97316';
 const SEVERITY_HIGH_COLOR = '#e63946';
-const FILTERED_OUT_STATE_COLOR = 'rgba(0, 0, 0, 0)';
+const DEFAULT_STATE_COLOR = SEVERITY_NONE_COLOR;
 const DISTRICT_BORDER_COLOR = '#ffffff';
 const EARTHQUAKE_SOURCE_ID = 'earthquakes';
 const EARTHQUAKE_LAYER_ID = 'earthquake-points';
+
+type HazardKey =
+  | 'strongWinds'
+  | 'thunderstorm'
+  | 'landslide'
+  | 'flood'
+  | 'earthquake';
+type ViewKey = 'warnings' | 'sensors' | 'forecast';
+
+const HAZARDS: ReadonlyArray<{
+  key: HazardKey;
+  label: string;
+  icon: string;
+  eventTypes: readonly string[];
+  titleIncludes?: readonly string[];
+}> = [
+  {
+    key: 'strongWinds',
+    label: 'Strong Winds',
+    icon: '💨',
+    eventTypes: [],
+    titleIncludes: ['strong winds and rough seas'],
+  },
+  {
+    key: 'thunderstorm',
+    label: 'Thunderstorm',
+    icon: '⚡',
+    eventTypes: [],
+    titleIncludes: ['thunderstorm'],
+  },
+  {
+    key: 'landslide',
+    label: 'Landslide',
+    icon: '⛰',
+    eventTypes: [],
+    titleIncludes: ['landslide'],
+  },
+  {
+    key: 'flood',
+    label: 'Flood',
+    icon: '≋',
+    eventTypes: [],
+    titleIncludes: ['flood'],
+  },
+  { key: 'earthquake', label: 'Earthquake', icon: '◉', eventTypes: [] },
+];
+
+const SEVERITIES = [
+  ['#2ca25f', 'Advisory'],
+  ['#f4c430', 'Watch'],
+  ['#f97316', 'Warning'],
+  ['#e63946', 'Severe'],
+] as const;
 
 // Pitch is purely a function of the current zoom level (not of which state
 // is "active"), so it stays correct whether the camera got there via a
@@ -114,26 +324,45 @@ function formatEventTime(value: unknown): string {
   )}:${pad(date.getSeconds())}`;
 }
 
+function getEventDateKey(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return undefined;
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    '0',
+  )}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function buildFillColorExpression(
   data: SupersetPluginChart3DMapProps['data'],
 ): unknown[] {
-  const colorsByState = new Map<string, string>();
+  const severityByState = new Map<string, number>();
   data.forEach(item => {
     if (!item.state_key) return;
-    const color =
-      item.metric === 2
-        ? SEVERITY_HIGH_COLOR
-        : item.metric === 1
-          ? SEVERITY_MODERATE_COLOR
-          : SEVERITY_NONE_COLOR;
-    colorsByState.set(item.state_key, color);
+    severityByState.set(
+      item.state_key,
+      Math.max(severityByState.get(item.state_key) ?? 0, item.metric ?? 0),
+    );
   });
+
+  const colorsByState = Array.from(severityByState, ([stateKey, severity]) => [
+    stateKey,
+    severity >= 3
+      ? SEVERITY_HIGH_COLOR
+      : severity >= 2
+        ? SEVERITY_WARNING_COLOR
+        : severity >= 1
+          ? SEVERITY_MODERATE_COLOR
+          : SEVERITY_NONE_COLOR,
+  ]);
 
   return [
     'match',
     ['get', 'stateKey'],
-    ...Array.from(colorsByState.entries()).flat(),
-    FILTERED_OUT_STATE_COLOR,
+    ...colorsByState.flat(),
+    DEFAULT_STATE_COLOR,
   ];
 }
 
@@ -152,6 +381,22 @@ export default function SupersetPluginChart3DMap(
   const rootElem = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<maplibregl.Map | null>(null);
   const layersReadyRef = React.useRef(false);
+  const [enabledViews, setEnabledViews] = React.useState<
+    Record<ViewKey, boolean>
+  >({
+    warnings: true,
+    sensors: true,
+    forecast: false,
+  });
+  const [enabledHazards, setEnabledHazards] = React.useState<
+    Record<HazardKey, boolean>
+  >({
+    strongWinds: true,
+    thunderstorm: true,
+    landslide: true,
+    flood: true,
+    earthquake: true,
+  });
 
   // Native Superset filters drive the active state through transformed query
   // data. Map interaction itself does not emit or clear dashboard filters.
@@ -164,6 +409,45 @@ export default function SupersetPluginChart3DMap(
     string,
     [number, number]
   > | null>(null);
+
+  const latestWarningDate = React.useMemo(() => {
+    const eventDates = data
+      .map(item => getEventDateKey(item.eventTime))
+      .filter((date): date is string => Boolean(date));
+    return eventDates.sort()[eventDates.length - 1];
+  }, [data]);
+
+  const visibleData = React.useMemo(
+    () =>
+      data
+        .filter(
+          item =>
+            !latestWarningDate ||
+            getEventDateKey(item.eventTime) === latestWarningDate,
+        )
+        .filter(item =>
+          HAZARDS.some(
+            hazard =>
+              hazard.key !== 'earthquake' &&
+              enabledHazards[hazard.key] &&
+              (hazard.eventTypes.includes(item.eventType) ||
+                hazard.titleIncludes?.some(title =>
+                  item.title?.includes(title),
+                )),
+          ),
+        ),
+    [data, enabledHazards, latestWarningDate],
+  );
+
+  const latestEventTime = React.useMemo(() => {
+    const latestTime = data.reduce<string | undefined>((latest, item) => {
+      if (item.eventType !== 'weather_warning' || !item.eventTime) {
+        return latest;
+      }
+      return !latest || item.eventTime > latest ? item.eventTime : latest;
+    }, undefined);
+    return latestTime ? formatEventTime(latestTime) : 'Live data';
+  }, [data]);
 
   // Create the map once per mount.
   React.useEffect(() => {
@@ -186,9 +470,9 @@ export default function SupersetPluginChart3DMap(
     exportContainer.dataset.imageExportRenderer = 'maplibre';
     exportContainer._prepareForImageExport = () =>
       new Promise<void>(resolve => {
-        let timeoutId: ReturnType<typeof setTimeout>;
+        const timeout: { id?: ReturnType<typeof setTimeout> } = {};
         const finish = () => {
-          clearTimeout(timeoutId);
+          if (timeout.id) clearTimeout(timeout.id);
           map.off('render', finish);
           const canvas = map.getCanvas() as ImageExportCanvas;
           try {
@@ -202,7 +486,7 @@ export default function SupersetPluginChart3DMap(
             resolve();
           }
         };
-        timeoutId = setTimeout(finish, 1000);
+        timeout.id = setTimeout(finish, 1000);
         map.once('render', finish);
         map.triggerRepaint();
       });
@@ -355,7 +639,7 @@ export default function SupersetPluginChart3DMap(
           '#e63946',
         ],
         'circle-opacity': 0.85,
-        'circle-stroke-color': '#ffffff',
+        'circle-stroke-color': DISTRICT_BORDER_COLOR,
         'circle-stroke-width': 1.5,
       },
     });
@@ -410,20 +694,28 @@ export default function SupersetPluginChart3DMap(
     map.setPaintProperty(
       'districts-fill',
       'fill-color',
-      buildFillColorExpression(data),
+      visibleData.length > 0
+        ? buildFillColorExpression(visibleData)
+        : DEFAULT_STATE_COLOR,
     );
     map.setPaintProperty('districts-fill', 'fill-opacity', 0.6);
     map.setLayoutProperty(
       'districts-fill',
       'visibility',
-      data.length > 0 ? 'visible' : 'none',
+      enabledViews.warnings ? 'visible' : 'none',
     );
     map.setLayoutProperty(
       'districts-line',
       'visibility',
       showDistrictBorders ? 'visible' : 'none',
     );
-  }, [data, showDistrictBorders, mapLoaded, districtsFC]);
+  }, [
+    visibleData,
+    enabledViews.warnings,
+    showDistrictBorders,
+    mapLoaded,
+    districtsFC,
+  ]);
 
   React.useEffect(() => {
     const map = mapRef.current;
@@ -433,7 +725,10 @@ export default function SupersetPluginChart3DMap(
     if (!source) return;
     const featureCollection: FeatureCollection<Point> = {
       type: 'FeatureCollection',
-      features: earthquakes.map(earthquake => ({
+      features: (enabledHazards.earthquake && enabledViews.warnings
+        ? earthquakes
+        : []
+      ).map(earthquake => ({
         type: 'Feature',
         geometry: {
           type: 'Point',
@@ -449,7 +744,13 @@ export default function SupersetPluginChart3DMap(
       })),
     };
     source.setData(featureCollection);
-  }, [earthquakes, mapLoaded, districtsFC]);
+  }, [
+    earthquakes,
+    enabledHazards.earthquake,
+    enabledViews.warnings,
+    mapLoaded,
+    districtsFC,
+  ]);
 
   // Fly/zoom the camera to the active state (or back out to the whole
   // country). The `zoomend` listener above derives pitch after the camera
@@ -484,5 +785,102 @@ export default function SupersetPluginChart3DMap(
     }
   }, [selectedStateKey, mapLoaded, stateCentroids]);
 
-  return <Styles ref={rootElem} height={height} width={width} />;
+  const toggleHazard = (key: HazardKey) => {
+    setEnabledHazards(previous => ({ ...previous, [key]: !previous[key] }));
+  };
+
+  const toggleView = (key: ViewKey, checked: boolean) => {
+    setEnabledViews(previous => ({ ...previous, [key]: checked }));
+  };
+
+  return (
+    <Styles height={height} width={width}>
+      <header className="hazard-map-header">
+        <nav className="hazard-map-tabs" aria-label="Map view">
+          {(['warnings', 'sensors', 'forecast'] as const).map(view => (
+            <label className="hazard-map-view-toggle" key={view}>
+              {view[0].toUpperCase() + view.slice(1)}
+              <Switch
+                checked={enabledViews[view]}
+                size="small"
+                onChange={checked => toggleView(view, checked)}
+              />
+            </label>
+          ))}
+        </nav>
+      </header>
+      <div className="hazard-map-body">
+        <div className="hazard-map-map">
+          <div ref={rootElem} className="hazard-map-canvas" />
+          <div className="hazard-map-status">Data as of {latestEventTime}</div>
+        </div>
+        <aside
+          className="hazard-map-sidebar"
+          aria-label="Map legend and filters"
+        >
+          {enabledViews.warnings ? (
+            <>
+              <section className="hazard-map-panel" aria-label="Hazard filters">
+                {HAZARDS.map(hazard => (
+                  <div className="hazard-map-option" key={hazard.key}>
+                    <Checkbox
+                      checked={enabledHazards[hazard.key]}
+                      onChange={() => toggleHazard(hazard.key)}
+                    >
+                      <span className="hazard-map-icon" aria-hidden="true">
+                        {hazard.icon}
+                      </span>
+                      {hazard.label}
+                    </Checkbox>
+                  </div>
+                ))}
+              </section>
+              <section
+                className="hazard-map-panel"
+                aria-label="Severity legend"
+              >
+                {SEVERITIES.map(([color, label]) => (
+                  <div className="hazard-map-legend-row" key={label}>
+                    <span
+                      className="hazard-map-swatch"
+                      style={{ backgroundColor: color }}
+                    />
+                    {label}
+                  </div>
+                ))}
+              </section>
+              <section
+                className="hazard-map-panel"
+                aria-label="Earthquake magnitude legend"
+              >
+                <div className="hazard-map-panel-title">
+                  Earthquakes (Magnitude)
+                </div>
+                <div className="hazard-map-magnitudes">
+                  {[
+                    [8, '< 3'],
+                    [13, '3–4'],
+                    [18, '4–5'],
+                    [24, '5+'],
+                  ].map(([size, label]) => (
+                    <div className="hazard-map-magnitude" key={label}>
+                      <span
+                        className="hazard-map-magnitude-dot"
+                        style={{ width: size, height: size }}
+                      />
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
+          ) : (
+            <section className="hazard-map-panel hazard-map-empty">
+              Enable Warnings to view the configured hazard layers.
+            </section>
+          )}
+        </aside>
+      </div>
+    </Styles>
+  );
 }
