@@ -91,7 +91,6 @@ import TimeTableChartPlugin from '../TimeTable';
 import { SupersetPluginChartHelloWorld } from 'superset-plugin-chart-hello-world';
 import { SupersetPluginChartCustomDistrictMap } from 'superset-plugin-chart-custom-district-map';
 import { SupersetPluginChart3DMap } from 'superset-plugin-chart-3d-map';
-import { SupersetPluginChartTestMap } from 'superset-plugin-chart-test-map';
 import { MalaysiaDisasterChartPlugin } from 'superset-plugin-chart-malaysia-disaster';
 import { SupersetPluginChartKpiCard } from 'superset-plugin-chart-kpi-card';
 export default class MainPreset extends Preset {
@@ -222,9 +221,6 @@ export default class MainPreset extends Preset {
         }),
         new SupersetPluginChart3DMap().configure({
           key: 'ext-3d-map',
-        }),
-        new SupersetPluginChartTestMap().configure({
-          key: 'ext-test-map',
         }),
         new MalaysiaDisasterChartPlugin().configure({
           key: 'malaysia-disaster-watch',

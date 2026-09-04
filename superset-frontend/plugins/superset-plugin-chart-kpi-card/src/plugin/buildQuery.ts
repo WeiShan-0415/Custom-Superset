@@ -16,8 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { buildQueryContext } from '@superset-ui/core';
+import {
+  buildQueryContext,
+  Aggregate,
+  QueryFormMetric,
+  QueryMode,
+} from '@superset-ui/core';
 import { SupersetPluginChartKpiCardQueryFormData } from '../types';
+
+const aggregateMetric = (
+  column: string,
+  aggregate: Aggregate,
+): QueryFormMetric => ({
+  expressionType: 'SIMPLE',
+  column: { column_name: column },
+  aggregate,
+  hasCustomLabel: true,
+  label: column,
+});
 
 /**
  * The buildQuery function is used to create an instance of QueryContext that's
@@ -38,26 +54,27 @@ export default function buildQuery(
 ) {
   const {
     value_column: valueColumn,
-    text_column: textColumn,
-    status_column: statusColumn,
     severe_column: severeColumn,
     warning_column: warningColumn,
     watch_column: watchColumn,
   } = formData;
-  return buildQueryContext(formData, baseQueryObject => [
-    {
-      ...baseQueryObject,
-      columns: [
-        ...new Set([
-          valueColumn,
-          textColumn,
-          statusColumn,
-          severeColumn,
-          warningColumn,
-          watchColumn,
-        ]),
-      ].filter((column): column is string => Boolean(column)),
-      metrics: undefined,
-    },
-  ]);
+  const valueMetric =
+    typeof valueColumn === 'string'
+      ? aggregateMetric(valueColumn, 'SUM')
+      : valueColumn;
+  return buildQueryContext(
+    { ...formData, query_mode: QueryMode.Aggregate },
+    baseQueryObject => [
+      {
+        ...baseQueryObject,
+        columns: [],
+        metrics: [
+          ...(valueMetric ? [valueMetric] : []),
+          ...[severeColumn, warningColumn, watchColumn]
+            .filter((column): column is string => Boolean(column))
+            .map(column => aggregateMetric(column, 'SUM')),
+        ],
+      },
+    ],
+  );
 }

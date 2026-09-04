@@ -16,13 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { QueryFormMetric } from '@superset-ui/core';
 import buildQuery from '../../src/plugin/buildQuery';
 
-test('buildQuery requests the two raw KPI columns without metrics', () => {
+test('buildQuery aggregates the KPI value and groups by supporting columns', () => {
+  const valueMetric: QueryFormMetric = {
+    expressionType: 'SIMPLE',
+    column: { column_name: 'rainfall_total' },
+    aggregate: 'SUM',
+    label: 'SUM(rainfall_total)',
+  };
   const formData = {
     datasource: '5__table',
     granularity_sqla: 'ds',
-    value_column: 'rainfall_total',
+    value_column: valueMetric,
     text_column: 'severity_text',
     status_column: 'severity',
     severe_column: 'severe_count',
@@ -34,13 +41,27 @@ test('buildQuery requests the two raw KPI columns without metrics', () => {
   const queryContext = buildQuery(formData);
   const [query] = queryContext.queries;
 
-  expect(query.columns).toEqual([
-    'rainfall_total',
-    'severity_text',
-    'severity',
-    'severe_count',
-    'warning_count',
-    'watch_count',
+  expect(query.columns).toEqual([]);
+  expect(query.metrics).toEqual([
+    valueMetric,
+    expect.objectContaining({ aggregate: 'SUM', label: 'severe_count' }),
+    expect.objectContaining({ aggregate: 'SUM', label: 'warning_count' }),
+    expect.objectContaining({ aggregate: 'SUM', label: 'watch_count' }),
   ]);
-  expect(query.metrics).toBeUndefined();
+});
+
+test('buildQuery treats a legacy value column as a SUM metric', () => {
+  const queryContext = buildQuery({
+    datasource: '5__table',
+    value_column: 'no_case',
+    viz_type: 'kpi_card',
+  });
+
+  expect(queryContext.queries[0].metrics).toEqual([
+    expect.objectContaining({
+      aggregate: 'SUM',
+      column: { column_name: 'no_case' },
+      label: 'no_case',
+    }),
+  ]);
 });

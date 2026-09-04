@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChartProps, DataRecord } from '@superset-ui/core';
+import { ChartProps, DataRecord, getMetricLabel } from '@superset-ui/core';
 import { SupersetPluginChartKpiCardQueryFormData } from '../types';
 
 export default function transformProps(chartProps: ChartProps) {
@@ -55,14 +55,36 @@ export default function transformProps(chartProps: ChartProps) {
   const {
     icon = '📊',
     title = 'KPI',
-    valueColumn = '',
+    valueColumn: valueMetric,
     textColumn = '',
     statusColumn = '',
     severeColumn = '',
     warningColumn = '',
     watchColumn = '',
   } = formData;
-  const data = (queriesData[0]?.data ?? []) as DataRecord[];
+  const valueColumn = valueMetric ? getMetricLabel(valueMetric) : '';
+  const queryData = (queriesData[0]?.data ?? []) as DataRecord[];
+  const data = queryData.map(row => {
+    const priorities = [
+      { column: severeColumn, label: 'severe', status: 3 },
+      { column: warningColumn, label: 'warning', status: 2 },
+      { column: watchColumn, label: 'watch', status: 1 },
+    ];
+    const priority = priorities.find(
+      item => item.column && Number(row[item.column]) > 0,
+    ) ?? { label: 'none', status: 0 };
+    const value = row[valueColumn];
+    const supportingText =
+      value === null || value === undefined || value === ''
+        ? priority.label
+        : `${value} ${priority.label}`;
+
+    return {
+      ...row,
+      ...(textColumn ? { [textColumn]: supportingText } : {}),
+      ...(statusColumn ? { [statusColumn]: priority.status } : {}),
+    };
+  });
 
   return {
     width,

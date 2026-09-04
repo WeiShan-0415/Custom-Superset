@@ -27,6 +27,12 @@ import {
 const config: ControlPanelConfig = {
   controlPanelSections: [
     {
+      label: t('Time'),
+      expanded: true,
+      description: t('Time-related query settings'),
+      controlSetRows: [['granularity_sqla'], ['time_range']],
+    },
+    {
       label: t('Query'),
       expanded: true,
       controlSetRows: [
@@ -54,6 +60,8 @@ const config: ControlPanelConfig = {
             name: 'metric',
             config: {
               ...sharedControls.metric,
+              default: null,
+              clearable: true,
               validators: [],
               description: t(
                 'Optional. When set (e.g. a COUNT of disaster records), each state with at ' +

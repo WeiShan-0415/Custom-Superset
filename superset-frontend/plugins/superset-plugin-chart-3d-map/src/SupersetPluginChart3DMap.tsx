@@ -439,15 +439,15 @@ export default function SupersetPluginChart3DMap(
     [data, enabledHazards, latestWarningDate],
   );
 
-  const latestEventTime = React.useMemo(() => {
-    const latestTime = data.reduce<string | undefined>((latest, item) => {
-      if (item.eventType !== 'weather_warning' || !item.eventTime) {
-        return latest;
-      }
-      return !latest || item.eventTime > latest ? item.eventTime : latest;
-    }, undefined);
-    return latestTime ? formatEventTime(latestTime) : 'Live data';
-  }, [data]);
+  // const latestEventTime = React.useMemo(() => {
+  //   const latestTime = data.reduce<string | undefined>((latest, item) => {
+  //     if (item.eventType !== 'weather_warning' || !item.eventTime) {
+  //       return latest;
+  //     }
+  //     return !latest || item.eventTime > latest ? item.eventTime : latest;
+  //   }, undefined);
+  //   return latestTime ? formatEventTime(latestTime) : 'Live data';
+  // }, [data]);
 
   // Create the map once per mount.
   React.useEffect(() => {
@@ -812,7 +812,7 @@ export default function SupersetPluginChart3DMap(
       <div className="hazard-map-body">
         <div className="hazard-map-map">
           <div ref={rootElem} className="hazard-map-canvas" />
-          <div className="hazard-map-status">Data as of {latestEventTime}</div>
+          {/* <div className="hazard-map-status">Data as of {latestEventTime}</div> */}
         </div>
         <aside
           className="hazard-map-sidebar"

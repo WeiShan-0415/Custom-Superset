@@ -41,9 +41,11 @@ const config: ControlPanelConfig = {
           {
             name: 'value_column',
             config: {
-              ...singleColumnControl,
+              ...sharedControls.metric,
               label: t('Value column'),
-              description: t('Column used for the large KPI value'),
+              description: t(
+                'Metric used for the large KPI value. Select a column and an aggregation such as SUM.',
+              ),
             },
           },
         ],

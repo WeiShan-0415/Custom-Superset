@@ -26,7 +26,12 @@ test('transformProps maps controls and query data to the KPI card', () => {
     granularity_sqla: 'ds',
     icon: '🌧️',
     title: 'Rainfall',
-    value_column: 'rainfall_total',
+    value_column: {
+      expressionType: 'SIMPLE' as const,
+      column: { column_name: 'rainfall_total' },
+      aggregate: 'SUM',
+      label: 'SUM(rainfall_total)',
+    },
     text_column: 'severity_text',
     status_column: 'severity',
     severe_column: 'severe_count',
@@ -42,9 +47,7 @@ test('transformProps maps controls and query data to the KPI card', () => {
       {
         data: [
           {
-            rainfall_total: 12,
-            severity_text: '3 severe',
-            severity: 3,
+            'SUM(rainfall_total)': 12,
             severe_count: 3,
             warning_count: 5,
             watch_count: 4,
@@ -59,7 +62,7 @@ test('transformProps maps controls and query data to the KPI card', () => {
     height: 600,
     icon: '🌧️',
     title: 'Rainfall',
-    valueColumn: 'rainfall_total',
+    valueColumn: 'SUM(rainfall_total)',
     textColumn: 'severity_text',
     statusColumn: 'severity',
     severeColumn: 'severe_count',
@@ -67,8 +70,8 @@ test('transformProps maps controls and query data to the KPI card', () => {
     watchColumn: 'watch_count',
     data: [
       {
-        rainfall_total: 12,
-        severity_text: '3 severe',
+        'SUM(rainfall_total)': 12,
+        severity_text: '12 severe',
         severity: 3,
         severe_count: 3,
         warning_count: 5,
