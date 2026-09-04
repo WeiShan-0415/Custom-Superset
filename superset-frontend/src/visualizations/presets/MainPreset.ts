@@ -93,6 +93,7 @@ import { SupersetPluginChartCustomDistrictMap } from 'superset-plugin-chart-cust
 import { SupersetPluginChart3DMap } from 'superset-plugin-chart-3d-map';
 import { SupersetPluginChartTestMap } from 'superset-plugin-chart-test-map';
 import { MalaysiaDisasterChartPlugin } from 'superset-plugin-chart-malaysia-disaster';
+import { SupersetPluginChartKpiCard } from 'superset-plugin-chart-kpi-card';
 export default class MainPreset extends Preset {
   constructor() {
     const experimentalPlugins = isFeatureEnabled(
@@ -200,7 +201,9 @@ export default class MainPreset extends Preset {
         new EchartsSunburstChartPlugin().configure({ key: VizType.Sunburst }),
         new HandlebarsChartPlugin().configure({ key: VizType.Handlebars }),
         new EchartsBubbleChartPlugin().configure({ key: VizType.Bubble }),
-        new SupersetPluginChartCustomDistrictMap().configure({ key: 'ext-custom-district-map' }),
+        new SupersetPluginChartCustomDistrictMap().configure({
+          key: 'ext-custom-district-map',
+        }),
         new CartodiagramPlugin({
           defaultLayers: [
             {
@@ -225,6 +228,9 @@ export default class MainPreset extends Preset {
         }),
         new MalaysiaDisasterChartPlugin().configure({
           key: 'malaysia-disaster-watch',
+        }),
+        new SupersetPluginChartKpiCard().configure({
+          key: 'ext-kpi-card',
         }),
         ...experimentalPlugins,
         ...agGridTablePlugin,

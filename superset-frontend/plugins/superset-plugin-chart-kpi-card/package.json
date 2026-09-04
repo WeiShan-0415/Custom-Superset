@@ -1,0 +1,45 @@
+{
+  "name": "superset-plugin-chart-kpi-card",
+  "version": "0.1.0",
+  "description": "Superset Plugin Chart Kpi Card",
+  "sideEffects": false,
+  "main": "lib/index.js",
+  "module": "esm/index.js",
+  "files": [
+    "esm",
+    "lib"
+  ],
+  "private": true,
+  "scripts": {
+    "build": "npm run build-cjs && npm run build-esm && npm run ts-types",
+    "build-cjs": "babel src --extensions \".ts,.tsx,.js,.jsx\" --copy-files --out-dir lib",
+    "build-clean": "npm run clean && npm run build",
+    "build-esm": "BABEL_OUTPUT=esm babel src --extensions \".ts,.tsx,.js,.jsx\" --copy-files --out-dir esm",
+    "dev": "BABEL_OUTPUT=esm babel src --extensions \".ts,.tsx,.js,.jsx\" --watch --copy-files --out-dir esm",
+    "prebuild": "rimraf {lib,esm,tsconfig.tsbuildinfo}",
+    "postbuild": "npm run test",
+    "ts-types": "node ../../node_modules/typescript/bin/tsc --build",
+    "test": "node ../../node_modules/jest/bin/jest.js"
+  },
+  "author": "My Name",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@apache-superset/core": "*",
+    "@airbnb/config-babel": "^2.0.1",
+    "@superset-ui/chart-controls": "*",
+    "@superset-ui/core": "*",
+    "react": "^17.0.2"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.16.0",
+    "@types/jest": "30.0.0",
+    "babel-jest": "30.0.2",
+    "jest": "30.2.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "rimraf": "^3.0.2",
+    "typescript": "5.4.5"
+  }
+}
