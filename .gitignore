@@ -139,3 +139,5 @@ oxc-custom-build/
 *.code-workspace
 *.duckdb
 my-superset-6.1.0-custom.tar.gz
+my-superset-*.tar
+my-superset-*.tar.gz

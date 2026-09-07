@@ -1,0 +1,306 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import React from 'react';
+import { styled } from '@apache-superset/core/theme';
+import { t } from '@apache-superset/core/translation';
+import {
+  Empty,
+  Flex,
+  Pagination,
+  Typography,
+} from '@superset-ui/core/components';
+import { SupersetPluginPriorityAlertProps } from './types';
+
+const SEVERITY_RANKS: [values: string[], rank: number][] = [
+  [['critical', 'severe', 'high', '3'], 3],
+  [['warning', 'medium', '2'], 2],
+  [['watch', 'low', '1'], 1],
+];
+
+/** Rank severities so the highest-priority alerts can color first. */
+function severityRank(severity: string): number {
+  return SEVERITY_RANKS.find(([values]) => values.includes(severity))?.[1] ?? 0;
+}
+
+/** Fixed severity colors, independent of the active Superset theme. */
+/* eslint-disable theme-colors/no-literal-colors */
+const SEVERITY_COLORS: Record<number, string> = {
+  3: '#cf1322',
+  2: '#fa8c16',
+  1: '#faad14',
+  0: '#8c8c8c',
+};
+/* eslint-enable theme-colors/no-literal-colors */
+
+const Container = styled.div<{ height: number; width: number }>`
+  box-sizing: border-box;
+  height: ${({ height }) => height}px;
+  width: ${({ width }) => width}px;
+  overflow: auto;
+  padding: ${({ theme }) => theme.sizeUnit * 3}px;
+  background: ${({ theme }) => theme.colorBgContainer};
+  color: ${({ theme }) => theme.colorText};
+`;
+
+const AlertList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: ${({ theme }) => theme.sizeUnit * 2}px 0 0;
+  border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
+  border-radius: ${({ theme }) => theme.borderRadius}px;
+  overflow: hidden;
+`;
+
+const AlertItem = styled.li<{ severity: string }>`
+  border-inline-start: 4px solid
+    ${({ severity }) => SEVERITY_COLORS[severityRank(severity)]};
+  & + & {
+    border-top: 1px solid ${({ theme }) => theme.colorBorderSecondary};
+  }
+  summary {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.sizeUnit * 3}px;
+    padding: ${({ theme }) => theme.sizeUnit * 3}px;
+    min-height: 70px;
+    box-sizing: border-box;
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colorPrimary};
+    outline-offset: -2px;
+  }
+  summary:hover {
+    background: ${({ theme }) => theme.colorFillQuaternary};
+  }
+  .alert-icon {
+    font-size: 28px;
+    flex: 0 0 32px;
+    text-align: center;
+  }
+  .alert-content {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .alert-title {
+    display: block;
+  }
+  .alert-time {
+    white-space: nowrap;
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+  }
+  .alert-chevron {
+    font-size: 24px;
+    color: ${({ theme }) => theme.colorTextSecondary};
+  }
+  details[open] .alert-chevron {
+    transform: rotate(90deg);
+  }
+  .alert-description {
+    padding: 0 ${({ theme }) => theme.sizeUnit * 3}px
+      ${({ theme }) => theme.sizeUnit * 3}px;
+  }
+`;
+
+const PAGE_SIZE = 5;
+
+/** Parse complete timestamps without assigning undated alerts to today. */
+function alertDate(value: unknown): Date | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined;
+  if (typeof value === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(value))
+    return undefined;
+  const date = new Date(
+    typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? `${value}T00:00:00`
+      : value,
+  );
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+/** Compare two column values, treating dates and numbers appropriately. */
+function compareValues(a: unknown, b: unknown): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return -1;
+  if (b == null) return 1;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  const dateA = alertDate(a);
+  const dateB = alertDate(b);
+  if (dateA && dateB) return dateA.getTime() - dateB.getTime();
+  return String(a).localeCompare(String(b));
+}
+
+/** Draw consistent outline icons for the supported hazard categories. */
+function AlertIcon({ value }: { value: string }) {
+  let path = 'M16 3 2 29h28L16 3Zm0 9v8m0 4v1';
+  if (/strong\s+winds?|rough\s+seas?/i.test(value)) {
+    path =
+      'M2 9h18a3 3 0 1 0-3-3M5 14h21a3 3 0 1 0-3-3M2 19h12a3 3 0 1 1-3 3M2 26q3-4 7 0t7 0t7 0t7 0M2 30q3-4 7 0t7 0t7 0t7 0';
+  } else if (/rain/i.test(value)) {
+    path =
+      'M8 20a6 6 0 1 1 1-12 8 8 0 0 1 15 3 5 5 0 0 1 0 10H8m2 3-2 5m9-5-2 5m9-5-2 5';
+  } else if (/flood/i.test(value)) {
+    path =
+      'M8 15v-3h4V8a4 4 0 0 1 8 0v4h4v3M2 20q4-4 8 0t8 0t12 0M2 25q4-4 8 0t8 0t12 0M2 30q4-4 8 0t8 0t12 0';
+  } else if (/thunder|storm/i.test(value)) {
+    path = 'M17 2 6 18h9l-2 12 13-19H16l1-9Z';
+  } else if (/earthquake|seismic/i.test(value)) {
+    path = 'M1 16h5l2-6 3 15 4-23 4 28 3-20 3 10 2-4h4';
+  } else if (/landslide/i.test(value)) {
+    path = 'M16 3 2 29h28L16 3Zm-2 7 3 3-3 4 3 3-3 5m8-5 2 2m-2 3 1 1M9 24l1-2';
+  }
+  return (
+    <svg
+      width="32"
+      height="32"
+      viewBox="0 0 32 32"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={path} />
+    </svg>
+  );
+}
+
+/** Render query rows as expandable alerts using Superset's time-filtered data. */
+export default function SupersetPluginPriorityAlert({
+  data,
+  height,
+  width,
+  headerText,
+  boldText,
+  headerFontSize,
+  sortColumn,
+  sortOrder,
+}: SupersetPluginPriorityAlertProps) {
+  const [page, setPage] = React.useState(1);
+  const [prevData, setPrevData] = React.useState(data);
+  if (data !== prevData) {
+    setPrevData(data);
+    setPage(1);
+  }
+  const direction = sortOrder === 'asc' ? 1 : -1;
+  const alerts = data
+    .map((row, index) => ({
+      row,
+      index,
+      date: alertDate(row.event_date),
+      severity: String(row.severity ?? 'info')
+        .trim()
+        .toLowerCase(),
+    }))
+    .sort(
+      (a, b) => direction * compareValues(a.row[sortColumn], b.row[sortColumn]),
+    );
+  const pagedAlerts = alerts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  return (
+    <Container height={height} width={width}>
+      <Typography.Title
+        level={4}
+        css={theme => ({
+          marginTop: 0,
+          fontWeight: boldText ? theme.fontWeightStrong : 'normal',
+          fontSize: theme[headerFontSize] || theme.fontSizeHeading4,
+        })}
+      >
+        {headerText || t('Priority alerts')}
+      </Typography.Title>
+      {alerts.length === 0 ? (
+        <Empty description={t('No alerts today')} />
+      ) : (
+        <AlertList aria-label={t('Priority alerts')}>
+          {pagedAlerts.map(({ row, index, date, severity }) => {
+            const title = String(row.title_en ?? t('Untitled alert'));
+            return (
+              <AlertItem key={index} severity={severity}>
+                <details>
+                  <summary>
+                    <span className="alert-icon" aria-hidden="true">
+                      <AlertIcon value={String(row.type ?? title)} />
+                    </span>
+                    <span className="alert-content">
+                      <Typography.Text strong className="alert-title">
+                        {title}
+                      </Typography.Text>
+                      <Typography.Text type="secondary">
+                        {String(row.location ?? '')}
+                      </Typography.Text>
+                    </span>
+                    <time
+                      className="alert-time"
+                      dateTime={date?.toISOString()}
+                      title={date?.toLocaleString()}
+                    >
+                      {date
+                        ? date.toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                          })
+                        : '—'}
+                    </time>
+                    <span className="alert-chevron" aria-hidden="true">
+                      ›
+                    </span>
+                  </summary>
+                  <div className="alert-description">
+                    <Typography.Text strong>
+                      {t('Severity')}: {severity}
+                    </Typography.Text>
+                    <div>{date?.toLocaleString()}</div>
+                    <div>
+                      {String(
+                        row.description ??
+                          t('No additional details available.'),
+                      )}
+                    </div>
+                  </div>
+                </details>
+              </AlertItem>
+            );
+          })}
+        </AlertList>
+      )}
+      {alerts.length > PAGE_SIZE && (
+        <Flex
+          justify="flex-end"
+          css={theme => ({ marginTop: theme.sizeUnit * 3 })}
+        >
+          <Pagination
+            size="small"
+            current={page}
+            pageSize={PAGE_SIZE}
+            total={alerts.length}
+            onChange={setPage}
+            showSizeChanger={false}
+          />
+        </Flex>
+      )}
+    </Container>
+  );
+}
