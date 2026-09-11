@@ -34,6 +34,29 @@ const singleColumnControl = {
 const config: ControlPanelConfig = {
   controlPanelSections: [
     {
+      label: t('Time'),
+      expanded: true,
+      description: t(
+        'Use a temporal column derived from the day-first event date for dashboard filtering.',
+      ),
+      controlSetRows: [
+        [
+          {
+            name: 'time_column',
+            config: {
+              ...singleColumnControl,
+              label: t('Time filter column'),
+              description: t(
+                'Temporal column used by the Superset time-range filter.',
+              ),
+              default: 'event_time',
+            },
+          },
+        ],
+        ['time_range'],
+      ],
+    },
+    {
       label: t('Query'),
       expanded: true,
       controlSetRows: [

@@ -25,7 +25,6 @@ jest.mock('../src/plugin/controlPanel', () => ({
 
 import { SupersetPluginChartKpiCard } from '../src';
 
-
 /**
  * The example tests in this file act as a starting point, and
  * we encourage you to build more. These tests check that the

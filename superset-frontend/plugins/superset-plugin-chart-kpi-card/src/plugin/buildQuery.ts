@@ -19,6 +19,7 @@
 import {
   buildQueryContext,
   Aggregate,
+  getColumnLabel,
   QueryFormMetric,
   QueryMode,
 } from '@superset-ui/core';
@@ -54,6 +55,7 @@ export default function buildQuery(
 ) {
   const {
     value_column: valueColumn,
+    time_column: timeColumn = 'event_time',
     severe_column: severeColumn,
     warning_column: warningColumn,
     watch_column: watchColumn,
@@ -68,6 +70,7 @@ export default function buildQuery(
       {
         ...baseQueryObject,
         columns: [],
+        granularity: getColumnLabel(timeColumn),
         metrics: [
           ...(valueMetric ? [valueMetric] : []),
           ...[severeColumn, warningColumn, watchColumn]

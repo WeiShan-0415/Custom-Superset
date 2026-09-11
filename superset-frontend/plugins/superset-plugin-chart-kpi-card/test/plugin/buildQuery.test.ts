@@ -29,6 +29,7 @@ test('buildQuery aggregates the KPI value and groups by supporting columns', () 
   const formData = {
     datasource: '5__table',
     granularity_sqla: 'ds',
+    time_column: 'event_time',
     value_column: valueMetric,
     text_column: 'severity_text',
     status_column: 'severity',
@@ -42,6 +43,7 @@ test('buildQuery aggregates the KPI value and groups by supporting columns', () 
   const [query] = queryContext.queries;
 
   expect(query.columns).toEqual([]);
+  expect(query.granularity).toBe('event_time');
   expect(query.metrics).toEqual([
     valueMetric,
     expect.objectContaining({ aggregate: 'SUM', label: 'severe_count' }),
@@ -64,4 +66,20 @@ test('buildQuery treats a legacy value column as a SUM metric', () => {
       label: 'no_case',
     }),
   ]);
+  expect(queryContext.queries[0].granularity).toBe('event_time');
+});
+
+test('buildQuery applies the time range to the selected temporal column', () => {
+  const queryContext = buildQuery({
+    datasource: '5__table',
+    time_column: 'parsed_event_date',
+    time_range: '2026-08-20 : 2026-08-21',
+    value_column: 'alert_count',
+    viz_type: 'kpi_card',
+  });
+  const [query] = queryContext.queries;
+
+  expect(query.granularity).toBe('parsed_event_date');
+  expect(query.time_range).toBe('2026-08-20 : 2026-08-21');
+  expect(query.columns).toEqual([]);
 });

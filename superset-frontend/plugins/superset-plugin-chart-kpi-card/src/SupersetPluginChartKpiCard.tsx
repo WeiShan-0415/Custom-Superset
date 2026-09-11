@@ -25,6 +25,7 @@ const Card = styled.div<{ height: number; width: number }>`
   border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
   border-radius: ${({ theme }) => theme.borderRadiusLG}px;
   box-sizing: border-box;
+  container-type: inline-size;
   display: flex;
   gap: ${({ theme }) => theme.sizeUnit * 2}px;
   height: ${({ height }) => height}px;
@@ -78,14 +79,24 @@ const Divider = styled.div`
 
 const Title = styled.div`
   color: ${({ theme }) => theme.colorTextSecondary};
-  font-size: ${({ theme }) => theme.fontSize}px;
+  font-size: ${({ theme }) => theme.fontSizeHeading4}px;
+  font-size: clamp(
+    ${({ theme }) => theme.fontSize}px,
+    4cqw,
+    ${({ theme }) => theme.fontSizeHeading4}px
+  );
   overflow-wrap: anywhere;
   white-space: normal;
 `;
 
 const Value = styled.div`
   color: ${({ theme }) => theme.colorText};
-  font-size: ${({ theme }) => theme.fontSizeHeading1}px;
+  font-size: ${({ theme }) => theme.fontSizeHeading1 * 1.25}px;
+  font-size: clamp(
+    ${({ theme }) => theme.fontSizeHeading2}px,
+    8cqw,
+    ${({ theme }) => theme.fontSizeHeading1 * 1.25}px
+  );
   font-weight: ${({ theme }) => theme.fontWeightStrong};
   line-height: 1.1;
   overflow: hidden;
@@ -95,7 +106,12 @@ const Value = styled.div`
 
 const SupportingText = styled.div`
   color: ${({ theme }) => theme.colorTextSecondary};
-  font-size: ${({ theme }) => theme.fontSize}px;
+  font-size: ${({ theme }) => theme.fontSizeHeading4}px;
+  font-size: clamp(
+    ${({ theme }) => theme.fontSize}px,
+    4cqw,
+    ${({ theme }) => theme.fontSizeHeading4}px
+  );
   font-weight: ${({ theme }) => theme.fontWeightStrong};
   overflow: hidden;
   text-overflow: ellipsis;
@@ -126,7 +142,12 @@ const StatusItem = styled.div`
   align-items: center;
   color: ${({ theme }) => theme.colorText};
   display: flex;
-  font-size: ${({ theme }) => theme.fontSize}px;
+  font-size: ${({ theme }) => theme.fontSizeHeading4}px;
+  font-size: clamp(
+    ${({ theme }) => theme.fontSizeSM}px,
+    3.5cqw,
+    ${({ theme }) => theme.fontSizeHeading4}px
+  );
   gap: ${({ theme }) => theme.sizeUnit * 2}px;
   overflow: hidden;
   white-space: nowrap;

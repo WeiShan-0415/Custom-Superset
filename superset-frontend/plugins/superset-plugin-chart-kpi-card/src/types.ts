@@ -16,7 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { DataRecord, QueryFormData, QueryFormMetric } from '@superset-ui/core';
+import {
+  DataRecord,
+  QueryFormColumn,
+  QueryFormData,
+  QueryFormMetric,
+} from '@superset-ui/core';
 
 export interface SupersetPluginChartKpiCardStylesProps {
   height: number;
@@ -37,6 +42,7 @@ export interface SupersetPluginChartKpiCardCustomizeProps {
 export type SupersetPluginChartKpiCardQueryFormData = QueryFormData & {
   icon?: string;
   title?: string;
+  time_column?: QueryFormColumn;
   value_column?: QueryFormMetric | string;
   text_column?: string;
   status_column?: string;
@@ -49,6 +55,7 @@ export type SupersetPluginChartKpiCardQueryFormData = QueryFormData & {
   severeColumn?: string;
   warningColumn?: string;
   watchColumn?: string;
+  timeColumn?: QueryFormColumn;
 };
 
 export type SupersetPluginChartKpiCardProps =
