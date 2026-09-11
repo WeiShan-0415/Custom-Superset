@@ -37,6 +37,17 @@ function deriveActiveStateKey(
   return normalizeStateKey(values[0]) ?? null;
 }
 
+function parseSeverity(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue)) return numericValue;
+  const normalizedValue = String(value).trim().toLowerCase();
+  if (['critical', 'severe', 'high'].includes(normalizedValue)) return 3;
+  if (['warning', 'medium'].includes(normalizedValue)) return 2;
+  if (['watch', 'low'].includes(normalizedValue)) return 1;
+  return 0;
+}
+
 function parseEventDate(value: unknown): Date | null {
   if (value === null || value === undefined || value === '') return null;
   const rawValue = String(value).trim();
@@ -78,11 +89,15 @@ export default function transformProps(chartProps: ChartProps) {
 
   const data: StateMapDataItem[] = stateRows.map(row => {
     const rawValue = String(row[stateColumnLabel] ?? '');
-    const title = String(row.title ?? '').trim().toLowerCase();
+    const title = String(row.title ?? '')
+      .trim()
+      .toLowerCase();
     const eventTime = String(row.event_time ?? '').trim();
+    const warningKey = String(row.warning_key ?? '').trim();
     return {
       state_key: normalizeStateKey(rawValue) ?? '',
       raw_value: rawValue,
+      ...(warningKey ? { warningKey } : {}),
       eventType: String(row.event_type ?? '')
         .trim()
         .toLowerCase(),
@@ -90,7 +105,7 @@ export default function transformProps(chartProps: ChartProps) {
       ...(eventTime ? { eventTime } : {}),
       metric:
         metricLabel || row.severity !== undefined
-          ? Number(row[metricLabel ?? 'severity'] ?? 0)
+          ? parseSeverity(row[metricLabel ?? 'severity'])
           : undefined,
     };
   });

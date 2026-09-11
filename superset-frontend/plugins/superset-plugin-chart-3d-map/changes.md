@@ -1,5 +1,14 @@
 # Changes
 
+## Feature: live hazard map interface
+
+Restyled the chart as a dark live-hazard workspace with a header, warning/sensor/forecast
+tabs, hazard visibility controls, severity and earthquake-magnitude legends, and a data-time
+status. Warning controls filter the corresponding `event_type` rows and earthquake markers;
+tabs without configured dataset layers show an explicit empty state. The side panel is hidden
+on narrow chart layouts so the map remains usable. Terrain and hillshade start enabled and
+remain switchable through MapLibre's terrain control.
+
 ## 3D Map chart plugin build fixes
 
 Updated `plugins/superset-plugin-chart-3d-map` to work with the current Superset frontend APIs and build configuration.

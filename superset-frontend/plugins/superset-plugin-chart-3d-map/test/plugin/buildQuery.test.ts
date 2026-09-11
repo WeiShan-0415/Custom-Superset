@@ -31,6 +31,7 @@ describe('SupersetPluginChart3DMap buildQuery', () => {
     const [query] = queryContext.queries;
     expect(query.groupby).toEqual([
       'state_name',
+      'warning_key',
       'event_type',
       'event_time',
       'title',

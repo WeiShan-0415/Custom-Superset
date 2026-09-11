@@ -21,6 +21,7 @@ import { buildQueryContext, QueryFormData } from '@superset-ui/core';
 export default function buildQuery(formData: QueryFormData) {
   const { state_column: stateColumn, metric } = formData;
   const eventColumns = [
+    'warning_key',
     'event_type',
     'event_time',
     'title',

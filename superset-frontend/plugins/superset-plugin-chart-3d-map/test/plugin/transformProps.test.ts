@@ -104,11 +104,12 @@ describe('SupersetPluginChart3DMap transformProps', () => {
         {
           data: [
             {
+              warning_key: 'warning-1',
               event_type: 'weather_warning',
               state_name: 'Terengganu',
               title: 'Strong Winds and Rough Seas Warning',
               event_time: '2026-08-18 00:00:00',
-              severity: 1,
+              severity: 'warning',
             },
           ],
         },
@@ -119,10 +120,11 @@ describe('SupersetPluginChart3DMap transformProps', () => {
       {
         state_key: 'terengganu',
         raw_value: 'Terengganu',
+        warningKey: 'warning-1',
         eventType: 'weather_warning',
         title: 'strong winds and rough seas warning',
         eventTime: '2026-08-18 00:00:00',
-        metric: 1,
+        metric: 2,
       },
     ]);
   });
