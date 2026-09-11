@@ -94,6 +94,8 @@ import { SupersetPluginChart3DMap } from 'superset-plugin-chart-3d-map';
 import { MalaysiaDisasterChartPlugin } from 'superset-plugin-chart-malaysia-disaster';
 import { SupersetPluginChartKpiCard } from 'superset-plugin-chart-kpi-card';
 import { SupersetPluginPriorityAlert } from 'superset-plugin-priority-alert';
+import{SupersetPluginChartHazardRiskOutlook} from 'superset-plugin-chart-hazard-risk-outlook';
+import {SupersetPluginChartSelectedIncident} from 'superset-plugin-chart-selected-incident';
 export default class MainPreset extends Preset {
   constructor() {
     const experimentalPlugins = isFeatureEnabled(
@@ -231,6 +233,12 @@ export default class MainPreset extends Preset {
         }),
         new SupersetPluginPriorityAlert().configure({
           key: 'ext-priority-alert',
+        }),
+        new SupersetPluginChartHazardRiskOutlook().configure({
+          key: 'ext-hazard-risk-outlook',
+        }),
+        new SupersetPluginChartSelectedIncident().configure({
+          key: 'ext-selected-incident',
         }),
         ...experimentalPlugins,
         ...agGridTablePlugin,
