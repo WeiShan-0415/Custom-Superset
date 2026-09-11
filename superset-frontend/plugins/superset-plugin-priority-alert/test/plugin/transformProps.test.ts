@@ -21,6 +21,7 @@ import { ChartProps } from '@superset-ui/core';
 import transformProps from '../../src/plugin/transformProps';
 
 describe('SupersetPluginPriorityAlert transformProps', () => {
+  const setDataMask = jest.fn();
   const formData = {
     colorScheme: 'bnbColors',
     datasource: '3__table',
@@ -36,6 +37,9 @@ describe('SupersetPluginPriorityAlert transformProps', () => {
     width: 800,
     height: 600,
     theme: supersetTheme,
+    emitCrossFilters: true,
+    filterState: { selectedValues: ['warning-1'] },
+    hooks: { setDataMask },
     queriesData: [
       {
         data: [{ name: 'Hulk', sum__num: 1 }],
@@ -51,8 +55,11 @@ describe('SupersetPluginPriorityAlert transformProps', () => {
       headerFontSize: 'xs',
       headerText: 'my text',
       data: [{ name: 'Hulk', sum__num: 1 }],
-      sortColumn: 'event_date',
-      sortOrder: 'desc',
+      emitCrossFilters: true,
+      selectedWarningKeys: ['warning-1'],
+      setDataMask,
+      sortColumns: [{ field: 'event_date', ascending: false }],
+      warningKeyColumn: 'warning_key',
     });
   });
 });
@@ -101,21 +108,25 @@ test('maps selected columns and SQL expression labels to alert fields', () => {
   });
 });
 
-test('resolves the sort column and order from the sort controls', () => {
+test('resolves multiple sort columns and orders from the ordering control', () => {
   const result = transformProps(
     new ChartProps({
       theme: supersetTheme,
       formData: {
         datasource: '3__table',
         viz_type: 'priority_alert',
-        sort_column: 'district',
-        sort_order: 'asc',
+        order_by_cols: [
+          JSON.stringify(['district', true]),
+          JSON.stringify(['severity', false]),
+        ],
       },
       queriesData: [{ data: [] }],
     }),
   );
-  expect(result.sortColumn).toBe('district');
-  expect(result.sortOrder).toBe('asc');
+  expect(result.sortColumns).toEqual([
+    { field: 'district', ascending: true },
+    { field: 'severity', ascending: false },
+  ]);
 });
 
 test('handles an empty query response', () => {

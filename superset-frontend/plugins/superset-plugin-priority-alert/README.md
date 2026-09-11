@@ -2,6 +2,15 @@
 
 This is the Superset Plugin Priority Alert Superset Chart Plugin.
 
+### Dashboard cross-filtering
+
+Set **Warning key column** to the dataset's stable unique warning identifier
+(the default is `warning_key`) and enable **Emit dashboard cross filters** for
+the chart. Clicking an alert filters charts in its dashboard scope by that
+warning key; clicking the selected alert again clears the filter. The Malaysia
+3D Map can use the same key to fly to the affected state and color it using the
+selected warning's severity.
+
 ### Usage
 
 To build the plugin, run the following commands:

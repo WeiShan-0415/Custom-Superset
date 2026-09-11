@@ -37,14 +37,44 @@ const config: ControlPanelConfig = {
       label: t('Time'),
       expanded: true,
       description: t(
-        'The time range filters the Today view using the selected event date column.',
+        'The time range filters alerts using the selected temporal column.',
       ),
-      controlSetRows: [['time_range']],
+      controlSetRows: [
+        [
+          {
+            name: 'time_column',
+            config: {
+              ...singleColumnControl,
+              label: t('Time filter column'),
+              description: t(
+                'Temporal column used by the Superset time-range filter.',
+              ),
+              default: 'event_time',
+              validators: [validateNonEmpty],
+            },
+          },
+        ],
+        ['time_range'],
+      ],
     },
     {
       label: t('Query'),
       expanded: true,
       controlSetRows: [
+        [
+          {
+            name: 'warning_key_column',
+            config: {
+              ...singleColumnControl,
+              label: t('Warning key column'),
+              description: t(
+                'Unique warning identifier used to link an alert to the map.',
+              ),
+              default: alertColumnDefaults.warning_key_column,
+              validators: [validateNonEmpty],
+            },
+          },
+        ],
         [
           {
             name: 'title_column',
@@ -138,32 +168,14 @@ const config: ControlPanelConfig = {
         ],
         [
           {
-            name: 'sort_column',
+            name: 'order_by_cols',
             config: {
-              ...singleColumnControl,
-              label: t('Sort column'),
+              ...sharedControls.order_by_cols,
+              label: t('Ordering'),
               description: t(
-                'Column used to order the alert list. Defaults to the event date column.',
-              ),
-              default: null,
-              validators: [],
-            },
-          },
-        ],
-        [
-          {
-            name: 'sort_order',
-            config: {
-              type: 'SelectControl',
-              label: t('Sort order'),
-              default: 'desc',
-              choices: [
-                ['asc', t('Ascending')],
-                ['desc', t('Descending')],
-              ],
-              renderTrigger: true,
-              description: t(
-                'Order alerts ascending or descending by the sort column.',
+                'Order alerts by one or more columns, each with its own direction. ' +
+                  'The order in which columns are selected sets the sort priority. ' +
+                  'Defaults to the event date column, descending, when empty.',
               ),
             },
           },

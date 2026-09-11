@@ -26,21 +26,23 @@ const formData = {
   time_range: '2026-09-07 : 2026-09-08',
 };
 
-test('uses Superset time filters for the event date column', () => {
+test('uses Superset time filters for event_time', () => {
   const [query] = buildQuery({
     ...formData,
     cols: ['location', 'alert_id'],
   }).queries;
   expect(query.columns).toEqual([
+    'warning_key',
     'title_en',
     'location',
     'event_date',
     'severity',
+    'event_time',
     'alert_id',
   ]);
   expect(query.metrics).toEqual(['count']);
   expect(query.row_limit).toBe(100);
-  expect(query.granularity).toBe('event_date');
+  expect(query.granularity).toBe('event_time');
   expect(query.time_range).toBe('2026-09-07 : 2026-09-08');
 });
 
@@ -61,27 +63,49 @@ test('queries mapped columns and optional details without duplicate columns', ()
     cols: ['district', 'alert_id'],
   }).queries;
   expect(query.columns).toEqual([
+    'warning_key',
     title,
     'district',
     'issued_at',
     'level',
     'hazard',
     'message',
+    'event_time',
     'alert_id',
   ]);
-  expect(query.granularity).toBe('issued_at');
+  expect(query.granularity).toBe('event_time');
 });
 
-test('includes the sort column in the query when selected', () => {
+test('uses the selected temporal column for time filtering', () => {
   const [query] = buildQuery({
     ...formData,
-    sort_column: 'priority_score',
+    time_column: 'issued_timestamp',
+  }).queries;
+
+  expect(query.columns).toContain('issued_timestamp');
+  expect(query.granularity).toBe('issued_timestamp');
+  expect(query.time_range).toBe('2026-09-07 : 2026-09-08');
+});
+
+test('includes the sort columns in the query when selected', () => {
+  const [query] = buildQuery({
+    ...formData,
+    order_by_cols: [
+      JSON.stringify(['priority_score', false]),
+      JSON.stringify(['location', true]),
+    ],
   }).queries;
   expect(query.columns).toEqual([
+    'warning_key',
     'title_en',
     'location',
     'event_date',
     'severity',
+    'event_time',
     'priority_score',
+  ]);
+  expect(query.orderby).toEqual([
+    ['priority_score', false],
+    ['location', true],
   ]);
 });

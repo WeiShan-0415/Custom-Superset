@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React from 'react';
+import { useState } from 'react';
 import { styled } from '@apache-superset/core/theme';
 import { t } from '@apache-superset/core/translation';
+import { DataRecord } from '@superset-ui/core';
 import {
   Empty,
   Flex,
   Pagination,
+  Tabs,
   Typography,
 } from '@superset-ui/core/components';
 import { SupersetPluginPriorityAlertProps } from './types';
@@ -44,12 +46,13 @@ const SEVERITY_COLORS: Record<number, string> = {
   3: '#cf1322',
   2: '#fa8c16',
   1: '#faad14',
-  0: '#8c8c8c',
+  0: '#52c41a',
 };
 /* eslint-enable theme-colors/no-literal-colors */
 
 const Container = styled.div<{ height: number; width: number }>`
   box-sizing: border-box;
+  container-type: inline-size;
   height: ${({ height }) => height}px;
   width: ${({ width }) => width}px;
   overflow: auto;
@@ -70,6 +73,12 @@ const AlertList = styled.ul`
 const AlertItem = styled.li<{ severity: string }>`
   border-inline-start: 4px solid
     ${({ severity }) => SEVERITY_COLORS[severityRank(severity)]};
+  font-size: ${({ theme }) => theme.fontSizeHeading5}px;
+  font-size: clamp(
+    ${({ theme }) => theme.fontSize}px,
+    3cqw,
+    ${({ theme }) => theme.fontSizeHeading5}px
+  );
   & + & {
     border-top: 1px solid ${({ theme }) => theme.colorBorderSecondary};
   }
@@ -105,10 +114,21 @@ const AlertItem = styled.li<{ severity: string }>`
   }
   .alert-title {
     display: block;
+    font-size: ${({ theme }) => theme.fontSizeHeading4}px;
+    font-size: clamp(
+      ${({ theme }) => theme.fontSizeHeading5}px,
+      4cqw,
+      ${({ theme }) => theme.fontSizeHeading4}px
+    );
   }
   .alert-time {
     white-space: nowrap;
-    font-size: ${({ theme }) => theme.fontSizeSM}px;
+    font-size: ${({ theme }) => theme.fontSizeHeading5}px;
+    font-size: clamp(
+      ${({ theme }) => theme.fontSize}px,
+      3cqw,
+      ${({ theme }) => theme.fontSizeHeading5}px
+    );
   }
   .alert-chevron {
     font-size: 24px;
@@ -121,9 +141,20 @@ const AlertItem = styled.li<{ severity: string }>`
     padding: 0 ${({ theme }) => theme.sizeUnit * 3}px
       ${({ theme }) => theme.sizeUnit * 3}px;
   }
+  &.alert-selected {
+    background: ${({ theme }) => theme.colorPrimaryBg};
+    box-shadow: inset 0 0 0 2px ${({ theme }) => theme.colorPrimary};
+  }
 `;
 
-const PAGE_SIZE = 5;
+const ALERT_ROW_HEIGHT = 70;
+const NON_LIST_HEIGHT = 151;
+const ALL_EVENT_TYPES = '__all_event_types__';
+
+/** Fit as many complete alert rows as possible within the chart height. */
+export function calculatePageSize(height: number) {
+  return Math.max(1, Math.floor((height - NON_LIST_HEIGHT) / ALERT_ROW_HEIGHT));
+}
 
 /** Parse complete timestamps without assigning undated alerts to today. */
 function alertDate(value: unknown): Date | undefined {
@@ -148,6 +179,33 @@ function compareValues(a: unknown, b: unknown): number {
   const dateB = alertDate(b);
   if (dateA && dateB) return dateA.getTime() - dateB.getTime();
   return String(a).localeCompare(String(b));
+}
+
+/** Compare two rows across every sort key, in priority order. */
+function compareRows(
+  a: DataRecord,
+  b: DataRecord,
+  sortColumns: { field: string; ascending: boolean }[],
+): number {
+  for (const { field, ascending } of sortColumns) {
+    const cmp = compareValues(a[field], b[field]);
+    if (cmp !== 0) return ascending ? cmp : -cmp;
+  }
+  return 0;
+}
+
+/** Return a normalized event type for grouping alerts into tabs. */
+function eventType(row: DataRecord): string | undefined {
+  if (row.event_type === null || row.event_type === undefined) return undefined;
+  const value = String(row.event_type).trim();
+  return value || undefined;
+}
+
+/** Make lower-case event types easier to scan without changing acronyms. */
+function eventTypeLabel(value: string): string {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/(^|\s)\S/g, character => character.toUpperCase());
 }
 
 /** Draw consistent outline icons for the supported hazard categories. */
@@ -194,16 +252,37 @@ export default function SupersetPluginPriorityAlert({
   headerText,
   boldText,
   headerFontSize,
-  sortColumn,
-  sortOrder,
+  emitCrossFilters,
+  selectedWarningKeys,
+  setDataMask,
+  sortColumns,
+  warningKeyColumn,
 }: SupersetPluginPriorityAlertProps) {
-  const [page, setPage] = React.useState(1);
-  const [prevData, setPrevData] = React.useState(data);
-  if (data !== prevData) {
-    setPrevData(data);
+  const [page, setPage] = useState(1);
+  const [activeEventType, setActiveEventType] = useState(ALL_EVENT_TYPES);
+  const pageSize = calculatePageSize(height);
+  const [paginationInputs, setPaginationInputs] = useState({
+    data,
+    pageSize,
+  });
+  if (
+    data !== paginationInputs.data ||
+    pageSize !== paginationInputs.pageSize
+  ) {
+    setPaginationInputs({ data, pageSize });
     setPage(1);
   }
-  const direction = sortOrder === 'asc' ? 1 : -1;
+  const eventTypes = Array.from(
+    new Set(data.map(eventType).filter((value): value is string => !!value)),
+  );
+  const selectedEventType =
+    activeEventType === ALL_EVENT_TYPES || eventTypes.includes(activeEventType)
+      ? activeEventType
+      : ALL_EVENT_TYPES;
+  if (selectedEventType !== activeEventType) {
+    setActiveEventType(selectedEventType);
+    setPage(1);
+  }
   const alerts = data
     .map((row, index) => ({
       row,
@@ -213,33 +292,88 @@ export default function SupersetPluginPriorityAlert({
         .trim()
         .toLowerCase(),
     }))
-    .sort(
-      (a, b) => direction * compareValues(a.row[sortColumn], b.row[sortColumn]),
-    );
-  const pagedAlerts = alerts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    .sort((a, b) => compareRows(a.row, b.row, sortColumns));
+  const visibleAlerts =
+    selectedEventType === ALL_EVENT_TYPES
+      ? alerts
+      : alerts.filter(({ row }) => eventType(row) === selectedEventType);
+  const pagedAlerts = visibleAlerts.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
+  );
+
+  const selectWarning = (warningKey: unknown) => {
+    if (
+      !emitCrossFilters ||
+      warningKey === null ||
+      warningKey === undefined ||
+      warningKey === ''
+    ) {
+      return;
+    }
+    const selected = selectedWarningKeys.includes(String(warningKey));
+    const values = selected ? [] : [warningKey];
+    setDataMask({
+      extraFormData: {
+        filters: values.length
+          ? [{ col: warningKeyColumn, op: 'IN', val: values }]
+          : [],
+      },
+      filterState: {
+        value: values.length ? values : null,
+        selectedValues: values.length ? values : null,
+      },
+    });
+  };
 
   return (
     <Container height={height} width={width}>
       <Typography.Title
         level={4}
-        css={theme => ({
-          marginTop: 0,
-          fontWeight: boldText ? theme.fontWeightStrong : 'normal',
-          fontSize: theme[headerFontSize] || theme.fontSizeHeading4,
-        })}
+        css={theme => {
+          const maximumFontSize =
+            theme[headerFontSize] || theme.fontSizeHeading4;
+          return {
+            marginTop: 0,
+            fontWeight: boldText ? theme.fontWeightStrong : 'normal',
+            fontSize: `clamp(${theme.fontSizeHeading5}px, 5cqw, ${maximumFontSize}px)`,
+          };
+        }}
       >
         {headerText || t('Priority alerts')}
       </Typography.Title>
-      {alerts.length === 0 ? (
+      <Tabs
+        activeKey={selectedEventType}
+        onChange={key => {
+          setActiveEventType(key);
+          setPage(1);
+        }}
+        items={[
+          { key: ALL_EVENT_TYPES, label: t('All') },
+          ...eventTypes.map(value => ({
+            key: value,
+            label: eventTypeLabel(value),
+          })),
+        ]}
+      />
+      {visibleAlerts.length === 0 ? (
         <Empty description={t('No alerts today')} />
       ) : (
         <AlertList aria-label={t('Priority alerts')}>
           {pagedAlerts.map(({ row, index, date, severity }) => {
             const title = String(row.title_en ?? t('Untitled alert'));
+            const warningKey = row.warning_key;
+            const isSelected = selectedWarningKeys.includes(
+              String(warningKey ?? ''),
+            );
             return (
-              <AlertItem key={index} severity={severity}>
+              <AlertItem
+                className={isSelected ? 'alert-selected' : undefined}
+                key={String(warningKey ?? index)}
+                severity={severity}
+              >
                 <details>
-                  <summary>
+                  <summary onClick={() => selectWarning(warningKey)}>
                     <span className="alert-icon" aria-hidden="true">
                       <AlertIcon value={String(row.type ?? title)} />
                     </span>
@@ -286,7 +420,7 @@ export default function SupersetPluginPriorityAlert({
           })}
         </AlertList>
       )}
-      {alerts.length > PAGE_SIZE && (
+      {visibleAlerts.length > pageSize && (
         <Flex
           justify="flex-end"
           css={theme => ({ marginTop: theme.sizeUnit * 3 })}
@@ -294,8 +428,8 @@ export default function SupersetPluginPriorityAlert({
           <Pagination
             size="small"
             current={page}
-            pageSize={PAGE_SIZE}
-            total={alerts.length}
+            pageSize={pageSize}
+            total={visibleAlerts.length}
             onChange={setPage}
             showSizeChanger={false}
           />

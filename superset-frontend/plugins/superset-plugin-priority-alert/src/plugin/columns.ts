@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { QueryFormColumn } from '@superset-ui/core';
+import { getColumnLabel, QueryFormColumn } from '@superset-ui/core';
 
+// eslint-disable-next-line storybook/prefer-pascal-case -- Runtime defaults, not a Storybook export.
 export const alertColumnDefaults = {
+  warning_key_column: 'warning_key',
   title_column: 'title_en',
   location_column: 'location',
   event_date_column: 'event_date',
@@ -31,14 +33,53 @@ export type AlertColumnControls = Partial<
   Record<keyof typeof alertColumnDefaults, QueryFormColumn | null>
 >;
 
+export interface AlertTimeControls {
+  time_column?: QueryFormColumn;
+}
+
 export interface AlertSortControls {
-  sort_column?: QueryFormColumn | null;
-  sort_order?: 'asc' | 'desc';
+  // JSON-encoded `[column, ascending]` tuples, in priority order, matching
+  // the `order_by_cols` control used by the Table chart plugin.
+  order_by_cols?: string[];
+}
+
+export interface OrderByColumn {
+  column: QueryFormColumn;
+  ascending: boolean;
+}
+
+/** Parse the `order_by_cols` control into ordered sort keys. */
+export function getOrderByColumns(
+  formData: AlertSortControls,
+): OrderByColumn[] {
+  return (formData.order_by_cols ?? []).flatMap(entry => {
+    try {
+      const [column, ascending] = JSON.parse(entry) as [
+        QueryFormColumn,
+        boolean,
+      ];
+      return [{ column, ascending }];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** Resolve the label used to key each row for client-side sorting. */
+export function getOrderByLabels(
+  formData: AlertSortControls,
+): { field: string; ascending: boolean }[] {
+  return getOrderByColumns(formData).map(({ column, ascending }) => ({
+    field: getColumnLabel(column),
+    ascending,
+  }));
 }
 
 /** Resolve selected columns while preserving the original dataset defaults. */
 export function getAlertColumns(formData: AlertColumnControls) {
   return {
+    warning_key:
+      formData.warning_key_column ?? alertColumnDefaults.warning_key_column,
     title_en: formData.title_column ?? alertColumnDefaults.title_column,
     location: formData.location_column ?? alertColumnDefaults.location_column,
     event_date:

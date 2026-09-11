@@ -17,7 +17,11 @@
  * under the License.
  */
 import { QueryFormData, DataRecord } from '@superset-ui/core';
-import { AlertColumnControls, AlertSortControls } from './plugin/columns';
+import {
+  AlertColumnControls,
+  AlertSortControls,
+  AlertTimeControls,
+} from './plugin/columns';
 
 export interface SupersetPluginPriorityAlertStylesProps {
   height: number;
@@ -42,6 +46,7 @@ interface SupersetPluginPriorityAlertCustomizeProps {
 export type SupersetPluginPriorityAlertQueryFormData = QueryFormData &
   AlertColumnControls &
   AlertSortControls &
+  AlertTimeControls &
   SupersetPluginPriorityAlertStylesProps &
   SupersetPluginPriorityAlertCustomizeProps;
 
@@ -49,7 +54,11 @@ export type SupersetPluginPriorityAlertProps =
   SupersetPluginPriorityAlertStylesProps &
     SupersetPluginPriorityAlertCustomizeProps & {
       data: DataRecord[];
-      sortColumn: string;
-      sortOrder: 'asc' | 'desc';
-      // add typing here for the props you pass in from transformProps.ts!
+      emitCrossFilters: boolean;
+      selectedWarningKeys: string[];
+      setDataMask: (dataMask: Record<string, unknown>) => void;
+      // Sort keys in priority order; the first entry breaks ties, then the
+      // second, and so on.
+      sortColumns: { field: string; ascending: boolean }[];
+      warningKeyColumn: string;
     };

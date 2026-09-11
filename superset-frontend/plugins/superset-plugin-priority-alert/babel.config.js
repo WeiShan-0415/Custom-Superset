@@ -12,6 +12,12 @@ const config = getConfig({
   },
 });
 
+config.presets = config.presets.map(preset =>
+  preset === '@babel/preset-react'
+    ? ['@babel/preset-react', { runtime: 'automatic' }]
+    : preset,
+);
+
 config.plugins = [
   ['babel-plugin-transform-dev', { evaluate: false }],
   ['babel-plugin-typescript-to-proptypes', { loose: true }],

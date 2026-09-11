@@ -17,12 +17,21 @@
  * under the License.
  */
 import { ChartProps, DataRecord, getColumnLabel } from '@superset-ui/core';
-import { getAlertColumns } from './columns';
+import { getAlertColumns, getOrderByLabels } from './columns';
 
 /** Map selected query columns to the fields consumed by the alert table. */
 export default function transformProps(chartProps: ChartProps) {
-  const { width, height, formData, rawFormData, queriesData } = chartProps;
-  const { boldText, headerFontSize, headerText, sortOrder } = formData;
+  const {
+    width,
+    height,
+    formData,
+    rawFormData,
+    queriesData,
+    hooks,
+    emitCrossFilters,
+    filterState,
+  } = chartProps;
+  const { boldText, headerFontSize, headerText } = formData;
   const columns = getAlertColumns(rawFormData);
   const mapRows = (rows: DataRecord[]) =>
     rows.map(row => {
@@ -35,9 +44,11 @@ export default function transformProps(chartProps: ChartProps) {
       return mappedRow;
     });
   const data = mapRows((queriesData[0]?.data ?? []) as DataRecord[]);
-  const sortColumn = rawFormData.sort_column
-    ? getColumnLabel(rawFormData.sort_column)
-    : 'event_date';
+  const orderByLabels = getOrderByLabels(rawFormData);
+  const sortColumns =
+    orderByLabels.length > 0
+      ? orderByLabels
+      : [{ field: 'event_date', ascending: false }];
   return {
     width,
     height,
@@ -45,7 +56,10 @@ export default function transformProps(chartProps: ChartProps) {
     boldText,
     headerFontSize,
     headerText,
-    sortColumn,
-    sortOrder: sortOrder ?? 'desc',
+    emitCrossFilters,
+    selectedWarningKeys: (filterState.selectedValues ?? []).map(String),
+    setDataMask: hooks.setDataMask,
+    sortColumns,
+    warningKeyColumn: getColumnLabel(columns.warning_key),
   };
 }

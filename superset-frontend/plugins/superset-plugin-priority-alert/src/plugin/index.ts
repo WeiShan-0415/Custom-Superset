@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChartMetadata, ChartPlugin } from '@superset-ui/core';
+import { Behavior, ChartMetadata, ChartPlugin } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import buildQuery from './buildQuery';
 import controlPanel from './controlPanel';
@@ -36,6 +36,7 @@ export default class SupersetPluginPriorityAlert extends ChartPlugin {
    */
   constructor() {
     const metadata = new ChartMetadata({
+      behaviors: [Behavior.InteractiveChart],
       description: 'Superset Plugin Priority Alert',
       name: t('Superset Plugin Priority Alert'),
       thumbnail,

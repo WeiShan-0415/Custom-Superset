@@ -24,21 +24,30 @@ import {
 import {
   AlertColumnControls,
   AlertSortControls,
+  AlertTimeControls,
   getAlertColumns,
+  getOrderByColumns,
 } from './columns';
 
 /** Include every mapped alert field along with any extra grouping columns. */
 export default function buildQuery(
-  formData: QueryFormData & AlertColumnControls & AlertSortControls,
+  formData: QueryFormData &
+    AlertColumnControls &
+    AlertSortControls &
+    AlertTimeControls,
 ) {
+  const timeColumn = formData.time_column ?? 'event_time';
   const selectedColumns = Object.values(getAlertColumns(formData)).filter(
     column => column !== null,
   );
-  const eventDateColumn = getAlertColumns(formData).event_date;
+  const orderByColumns = getOrderByColumns(formData).map(
+    ({ column }) => column,
+  );
   return buildQueryContext(formData, baseQueryObject => {
     const columns = [
       ...selectedColumns,
-      ...(formData.sort_column ? [formData.sort_column] : []),
+      timeColumn,
+      ...orderByColumns,
       ...(formData.cols ?? []),
       ...(baseQueryObject.columns ?? []),
     ];
@@ -51,7 +60,7 @@ export default function buildQuery(
       {
         ...baseQueryObject,
         columns: uniqueColumns,
-        granularity: getColumnLabel(eventDateColumn),
+        granularity: getColumnLabel(timeColumn),
       },
     ];
   });
