@@ -211,22 +211,83 @@ function eventTypeLabel(value: string): string {
 /** Draw consistent outline icons for the supported hazard categories. */
 function AlertIcon({ value }: { value: string }) {
   let path = 'M16 3 2 29h28L16 3Zm0 9v8m0 4v1';
+  // eslint-disable-next-line no-console
+  console.info('[AlertIcon] Received value', {
+    value,
+  });
+
   if (/strong\s+winds?|rough\s+seas?/i.test(value)) {
+    // eslint-disable-next-line no-console
+    console.info('[AlertIcon] Matched strong winds / rough seas', {
+      value,
+      matched: 'strong winds / rough seas',
+    });
+
     path =
       'M2 9h18a3 3 0 1 0-3-3M5 14h21a3 3 0 1 0-3-3M2 19h12a3 3 0 1 1-3 3M2 26q3-4 7 0t7 0t7 0t7 0M2 30q3-4 7 0t7 0t7 0t7 0';
+
   } else if (/rain/i.test(value)) {
+    // eslint-disable-next-line no-console
+    console.info('[AlertIcon] Matched rain', {
+      value,
+      matched: 'rain',
+    });
+
     path =
       'M8 20a6 6 0 1 1 1-12 8 8 0 0 1 15 3 5 5 0 0 1 0 10H8m2 3-2 5m9-5-2 5m9-5-2 5';
+
   } else if (/flood/i.test(value)) {
+    // eslint-disable-next-line no-console
+    console.info('[AlertIcon] Matched flood', {
+      value,
+      matched: 'flood',
+    });
+
     path =
       'M8 15v-3h4V8a4 4 0 0 1 8 0v4h4v3M2 20q4-4 8 0t8 0t12 0M2 25q4-4 8 0t8 0t12 0M2 30q4-4 8 0t8 0t12 0';
+
   } else if (/thunder|storm/i.test(value)) {
+    // eslint-disable-next-line no-console
+    console.info('[AlertIcon] Matched thunder / storm', {
+      value,
+      matched: 'thunder / storm',
+    });
+
     path = 'M17 2 6 18h9l-2 12 13-19H16l1-9Z';
+
   } else if (/earthquake|seismic/i.test(value)) {
+    // eslint-disable-next-line no-console
+    console.info('[AlertIcon] Matched earthquake / seismic', {
+      value,
+      matched: 'earthquake / seismic',
+    });
+
     path = 'M1 16h5l2-6 3 15 4-23 4 28 3-20 3 10 2-4h4';
+
   } else if (/landslide/i.test(value)) {
-    path = 'M16 3 2 29h28L16 3Zm-2 7 3 3-3 4 3 3-3 5m8-5 2 2m-2 3 1 1M9 24l1-2';
+    // eslint-disable-next-line no-console
+    console.info('[AlertIcon] Matched landslide', {
+      value,
+      matched: 'landslide',
+    });
+
+    path =
+      'M16 3 2 29h28L16 3Zm-2 7 3 3-3 4 3 3-3 5m8-5 2 2m-2 3 1 1M9 24l1-2';
+
+  } else {
+    // eslint-disable-next-line no-console
+    console.info('[AlertIcon] No specific hazard matched, using default icon', {
+      value,
+      matched: 'default',
+    });
   }
+
+  // eslint-disable-next-line no-console
+  console.info('[AlertIcon] Final icon path selected', {
+    value,
+    path,
+  });
+  
   return (
     <svg
       width="32"
