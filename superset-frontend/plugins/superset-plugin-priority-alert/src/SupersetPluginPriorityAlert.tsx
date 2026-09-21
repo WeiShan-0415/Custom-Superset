@@ -196,8 +196,8 @@ function compareRows(
 
 /** Return a normalized event type for grouping alerts into tabs. */
 function eventType(row: DataRecord): string | undefined {
-  if (row.event_type === null || row.event_type === undefined) return undefined;
-  const value = String(row.event_type).trim();
+  if (row.type === null || row.type === undefined) return undefined;
+  const value = String(row.type).trim();
   return value || undefined;
 }
 

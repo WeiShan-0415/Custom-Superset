@@ -27,7 +27,7 @@ import type { FeatureCollection, Point } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { styled } from '@apache-superset/core/theme';
-import { Checkbox, Switch } from '@superset-ui/core/components';
+import { Button, Icons, Switch } from '@superset-ui/core/components';
 import {
   AllDistrictsFeatureCollection,
   loadAllDistricts,
@@ -43,59 +43,104 @@ import {
 // legible independently of the surrounding dashboard theme.
 // eslint-disable-next-line theme-colors/no-literal-colors
 const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
-  display: flex;
-  flex-direction: column;
+  position: relative;
   height: ${({ height }) => height}px;
   width: ${({ width }) => width}px;
   overflow: hidden;
-  color: #1f2937;
-  background: #f8fafc;
-  border: 1px solid #d1d5db;
-  border-radius: ${({ theme }) => theme.borderRadiusLG}px;
+  color: #0f1f4d;
+  background: #f4f8ff;
+  border-radius: ${({ theme }) => theme.borderRadiusLG * 2}px;
 
   .hazard-map-header {
+    position: absolute;
+    top: ${({ theme }) => theme.sizeUnit * 3}px;
+    right: ${({ theme }) => theme.sizeUnit * 3}px;
+    left: ${({ theme }) => theme.sizeUnit * 3}px;
+    z-index: 3;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 42px;
-    padding: 0 ${({ theme }) => theme.sizeUnit * 3}px;
-    border-bottom: 1px solid #d1d5db;
-    background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%);
-  }
-
-  .hazard-map-title {
-    margin: 0;
-    font-size: ${({ theme }) => theme.fontSizeLG}px;
-    font-weight: ${({ theme }) => theme.fontWeightStrong};
+    min-height: 60px;
+    padding: 0 210px 0 ${({ theme }) => theme.sizeUnit * 4}px;
+    background: rgb(255 255 255 / 92%);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgb(83 132 204 / 18%);
+    border-radius: 20px;
+    box-shadow: 0 4px 14px rgb(35 85 155 / 10%);
   }
 
   .hazard-map-tabs {
     display: flex;
     align-items: center;
-    gap: ${({ theme }) => theme.sizeUnit * 3}px;
+    gap: ${({ theme }) => theme.sizeUnit * 2}px;
+    padding: ${({ theme }) => theme.sizeUnit * 1.5}px;
+    background: #f4f8ff / 50%;
+    border: 1px solid rgb(83 132 204 / 10%);
+    border-radius: 999px;
+  }
+
+  .hazard-map-last-updated {
+    position: absolute;
+    top: 50%;
+    right: ${({ theme }) => theme.sizeUnit * 4}px;
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.sizeUnit * 2}px;
+    transform: translateY(-50%);
+    color: #52658f;
+    white-space: nowrap;
+  }
+
+  .hazard-map-last-updated-icon {
+    display: flex;
+    color: #5777b8;
+  }
+
+  .hazard-map-last-updated-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .hazard-map-last-updated-label {
+    font-size: 11px;
+    font-weight: ${({ theme }) => theme.fontWeightNormal};
+    line-height: 1;
+  }
+
+  .hazard-map-last-updated-value {
+    color: #0f1f4d;
+    font-size: 12px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
+    line-height: 1;
   }
 
   .hazard-map-view-toggle {
     display: flex;
     align-items: center;
-    gap: ${({ theme }) => theme.sizeUnit}px;
-    color: #475569;
+    gap: ${({ theme }) => theme.sizeUnit * 2}px;
+    padding: ${({ theme }) => theme.sizeUnit * 1.5}px
+      ${({ theme }) => theme.sizeUnit * 3}px;
+    color: #0f1f4d;
     font-size: ${({ theme }) => theme.fontSizeSM}px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
+    cursor: pointer;
+    border-radius: 999px;
+    transition: background-color 150ms ease;
+
+    &:hover {
+      background: rgb(255 255 255 / 60%);
+    }
   }
 
   .hazard-map-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) ${({ width }) =>
-        width >= 720 ? '190px' : '0'};
-    align-items: stretch;
-    min-height: 0;
-    flex: 1;
+    position: absolute;
+    inset: 0;
   }
 
   .hazard-map-map {
-    position: relative;
-    min-width: 0;
-    min-height: 0;
+    position: absolute;
+    inset: 0;
   }
 
   .hazard-map-canvas {
@@ -104,50 +149,123 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
   }
 
   .hazard-map-sidebar {
-    display: ${({ width }) => (width >= 720 ? 'flex' : 'none')};
-    align-self: stretch;
-    box-sizing: border-box;
-    flex-direction: column;
-    gap: ${({ theme }) => theme.sizeUnit * 2}px;
-    height: 100%;
-    overflow-y: auto;
-    padding: ${({ theme }) => theme.sizeUnit * 2}px;
-    background: #f8fafc;
-    border-left: 1px solid #d1d5db;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
   }
 
   .hazard-map-panel {
-    padding: ${({ theme }) => theme.sizeUnit * 2}px;
-    border: 1px solid #d1d5db;
-    border-radius: ${({ theme }) => theme.borderRadius}px;
-    background: #fff;
+    box-sizing: border-box;
+    padding: ${({ theme }) => theme.sizeUnit * 4}px;
+    background: rgb(255 255 255 / 50%);
+    border: 1px solid rgb(83 132 204 / 18%);
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgb(35 85 155 / 16%);
+    pointer-events: auto;
+  }
+
+  .hazard-map-layers {
+    position: absolute;
+    top: 84px;
+    right: ${({ theme }) => theme.sizeUnit * 3}px;
+    display: ${({ width }) => (width >= 520 ? 'block' : 'none')};
+    width: ${({ width }) => (width >= 720 ? '250px' : '220px')};
+    background: rgb(255 255 255 / 50%);
+  }
+
+  .hazard-map-layers-heading,
+  .hazard-map-severity-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.sizeUnit * 2}px;
+  }
+
+  .hazard-map-layers-heading .hazard-map-panel-title,
+  .hazard-map-severity-heading .hazard-map-panel-title {
+    margin-bottom: 0;
+  }
+
+  .hazard-map-layers-content,
+  .hazard-map-severity-content {
+    margin-top: ${({ theme }) => theme.sizeUnit * 3}px;
+  }
+
+  .hazard-map-legends {
+    position: absolute;
+    bottom: ${({ theme }) => theme.sizeUnit * 6}px;
+    left: ${({ theme }) => theme.sizeUnit * 3}px;
+    display: ${({ width }) => (width >= 720 ? 'flex' : 'none')};
+    align-items: stretch;
+    gap: ${({ theme }) => theme.sizeUnit * 3}px;
+  }
+
+  .hazard-map-severity-panel {
+    min-width: 190px;
+  }
+
+  .hazard-map-severity-panel-minimized {
+    align-self: flex-end;
+  }
+
+  .hazard-map-earthquake-panel {
+    min-width: 218px;
   }
 
   .hazard-map-panel-title {
-    margin-bottom: ${({ theme }) => theme.sizeUnit * 2}px;
-    color: #475569;
+    margin-bottom: ${({ theme }) => theme.sizeUnit * 3}px;
+    color: #52658f;
     font-size: ${({ theme }) => theme.fontSizeSM}px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
-  .hazard-map-option,
-  .hazard-map-legend-row {
+  .hazard-map-option {
     display: flex;
     align-items: center;
-    gap: ${({ theme }) => theme.sizeUnit * 2}px;
-    min-height: 28px;
-    color: #1f2937;
+    justify-content: space-between;
+    min-height: 34px;
+    color: #0f1f4d;
     white-space: nowrap;
   }
 
-  .hazard-map-option .ant-checkbox-wrapper,
-  .hazard-map-option .ant-checkbox-wrapper span:last-child {
-    color: #1f2937;
+  .hazard-map-option-label {
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.sizeUnit * 3}px;
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
+  }
+
+  .hazard-map-option .ant-switch-checked,
+  .hazard-map-view-toggle .ant-switch-checked {
+    background: #2478f2;
   }
 
   .hazard-map-icon {
     width: 20px;
     text-align: center;
     font-size: 18px;
+    opacity: 0.8;
+  }
+
+  .hazard-map-severity-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: ${({ theme }) => theme.sizeUnit * 2.5}px
+      ${({ theme }) => theme.sizeUnit * 4}px;
+  }
+
+  .hazard-map-legend-row {
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.sizeUnit * 2.5}px;
+    color: #0f1f4d;
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
+    white-space: nowrap;
   }
 
   .hazard-map-swatch {
@@ -162,7 +280,9 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    height: 48px;
+    gap: ${({ theme }) => theme.sizeUnit * 5}px;
+    height: 36px;
+    padding: 0 ${({ theme }) => theme.sizeUnit}px;
   }
 
   .hazard-map-magnitude {
@@ -170,8 +290,9 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
     flex-direction: column;
     align-items: center;
     gap: ${({ theme }) => theme.sizeUnit}px;
-    color: #475569;
+    color: #52658f;
     font-size: ${({ theme }) => theme.fontSizeSM}px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
   }
 
   .hazard-map-magnitude-dot {
@@ -181,7 +302,12 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
   }
 
   .hazard-map-empty {
-    color: #64748b;
+    position: absolute;
+    top: 84px;
+    right: ${({ theme }) => theme.sizeUnit * 3}px;
+    display: ${({ width }) => (width >= 520 ? 'block' : 'none')};
+    width: ${({ width }) => (width >= 720 ? '250px' : '220px')};
+    color: #52658f;
     line-height: 1.4;
   }
 
@@ -203,6 +329,59 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
   .maplibregl-popup-content {
     color: #1f2937;
   }
+
+  .maplibregl-ctrl-top-right {
+    top: ${({ width }) => (width >= 520 ? '326px' : '76px')};
+    right: ${({ theme }) => theme.sizeUnit * 2}px;
+  }
+
+  &.hazard-map-layers-minimized .maplibregl-ctrl-top-right {
+    top: ${({ width }) => (width >= 520 ? '146px' : '76px')};
+  }
+
+  .maplibregl-ctrl-bottom-left {
+    bottom: ${({ width }) => (width >= 720 ? '146px' : '8px')};
+    left: ${({ theme }) => theme.sizeUnit * 2}px;
+  }
+
+  @media (max-width: 520px) {
+    .hazard-map-header {
+      right: ${({ theme }) => theme.sizeUnit * 2}px;
+      left: ${({ theme }) => theme.sizeUnit * 2}px;
+      min-height: 52px;
+      padding: ${({ theme }) => theme.sizeUnit * 3}px 156px 0
+        ${({ theme }) => theme.sizeUnit * 2}px;
+      border-radius: 16px;
+      background: rgb(255 255 255 / 50%);
+    }
+
+    .hazard-map-tabs {
+      width: 100%;
+      justify-content: space-between;
+      gap: 0;
+      padding: ${({ theme }) => theme.sizeUnit}px;
+    }
+
+    .hazard-map-last-updated {
+      right: ${({ theme }) => theme.sizeUnit * 2}px;
+      gap: ${({ theme }) => theme.sizeUnit}px;
+    }
+
+    .hazard-map-last-updated-label {
+      font-size: 9px;
+    }
+
+    .hazard-map-last-updated-value {
+      font-size: 10px;
+    }
+
+    .hazard-map-view-toggle {
+      flex-direction: column;
+      gap: 2px;
+      padding: ${({ theme }) => theme.sizeUnit}px;
+      font-size: 11px;
+    }
+  }
 `;
 
 const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
@@ -222,6 +401,7 @@ const SEVERITY_WARNING_COLOR = '#f97316';
 const SEVERITY_HIGH_COLOR = '#e63946';
 const DEFAULT_STATE_COLOR = SEVERITY_NONE_COLOR;
 const DISTRICT_BORDER_COLOR = '#ffffff';
+const DISTRICT_FILL_OPACITY = 0.5;
 const EARTHQUAKE_SOURCE_ID = 'earthquakes';
 const EARTHQUAKE_LAYER_ID = 'earthquake-points';
 
@@ -233,13 +413,15 @@ type HazardKey =
   | 'earthquake';
 type ViewKey = 'warnings' | 'sensors' | 'forecast';
 
-const HAZARDS: ReadonlyArray<{
+type Hazard = {
   key: HazardKey;
   label: string;
   icon: string;
   eventTypes: readonly string[];
   titleIncludes?: readonly string[];
-}> = [
+};
+
+const HAZARDS: ReadonlyArray<Hazard> = [
   {
     key: 'strongWinds',
     label: 'Strong Winds',
@@ -324,15 +506,52 @@ function formatEventTime(value: unknown): string {
   )}:${pad(date.getSeconds())}`;
 }
 
-function getEventDateKey(value: string | undefined): string | undefined {
+function parseEventTime(value: string | undefined): Date | undefined {
   if (!value) return undefined;
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) return undefined;
-  const date = new Date(timestamp);
+  const rawValue = String(value).trim();
+  const numericValue = Number(rawValue);
+  const date = /^\d+$/.test(rawValue)
+    ? new Date(
+        numericValue < 1_000_000_000_000 ? numericValue * 1000 : numericValue,
+      )
+    : new Date(rawValue);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date;
+}
+
+function getEventDateKey(value: string | undefined): string | undefined {
+  const date = parseEventTime(value);
+  if (!date) return undefined;
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
     2,
     '0',
   )}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatLastUpdated(date: Date): string {
+  const formattedDate = new Intl.DateTimeFormat('en-MY', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+    .format(date)
+    .replace(/\b(am|pm)\b/, period => period.toUpperCase());
+  return `${formattedDate} (MYT)`;
+}
+
+function matchesHazard(
+  item: SupersetPluginChart3DMapProps['data'][number],
+  hazard: Hazard,
+): boolean {
+  return (
+    hazard.key !== 'earthquake' &&
+    (hazard.eventTypes.includes(item.eventType) ||
+      Boolean(hazard.titleIncludes?.some(title => item.title?.includes(title))))
+  );
 }
 
 function buildFillColorExpression(
@@ -397,6 +616,10 @@ export default function SupersetPluginChart3DMap(
     flood: true,
     earthquake: true,
   });
+  const [areHazardLayersMinimized, setAreHazardLayersMinimized] =
+    React.useState(false);
+  const [isWarningLevelMinimized, setIsWarningLevelMinimized] =
+    React.useState(false);
 
   // Native Superset filters drive the active state through transformed query
   // data. Map interaction itself does not emit or clear dashboard filters.
@@ -417,26 +640,42 @@ export default function SupersetPluginChart3DMap(
     return eventDates.sort()[eventDates.length - 1];
   }, [data]);
 
+  const latestDatasetEventTime = React.useMemo(() => {
+    const eventTimes = [...data, ...earthquakes]
+      .map(item => parseEventTime(item.eventTime))
+      .filter((date): date is Date => Boolean(date));
+    if (eventTimes.length === 0) return undefined;
+    return new Date(Math.max(...eventTimes.map(date => date.getTime())));
+  }, [data, earthquakes]);
+
+  const currentWarningData = React.useMemo(
+    () =>
+      data.filter(
+        item =>
+          !latestWarningDate ||
+          getEventDateKey(item.eventTime) === latestWarningDate,
+      ),
+    [data, latestWarningDate],
+  );
+
+  const availableHazards = React.useMemo(
+    () =>
+      HAZARDS.filter(hazard =>
+        hazard.key === 'earthquake'
+          ? earthquakes.length > 0
+          : currentWarningData.some(item => matchesHazard(item, hazard)),
+      ),
+    [currentWarningData, earthquakes.length],
+  );
+
   const visibleData = React.useMemo(
     () =>
-      data
-        .filter(
-          item =>
-            !latestWarningDate ||
-            getEventDateKey(item.eventTime) === latestWarningDate,
-        )
-        .filter(item =>
-          HAZARDS.some(
-            hazard =>
-              hazard.key !== 'earthquake' &&
-              enabledHazards[hazard.key] &&
-              (hazard.eventTypes.includes(item.eventType) ||
-                hazard.titleIncludes?.some(title =>
-                  item.title?.includes(title),
-                )),
-          ),
+      currentWarningData.filter(item =>
+        HAZARDS.some(
+          hazard => enabledHazards[hazard.key] && matchesHazard(item, hazard),
         ),
-    [data, enabledHazards, latestWarningDate],
+      ),
+    [currentWarningData, enabledHazards],
   );
 
   // const latestEventTime = React.useMemo(() => {
@@ -595,7 +834,10 @@ export default function SupersetPluginChart3DMap(
       id: 'districts-fill',
       type: 'fill',
       source: 'districts',
-      paint: { 'fill-color': SEVERITY_NONE_COLOR, 'fill-opacity': 0.6 },
+      paint: {
+        'fill-color': SEVERITY_NONE_COLOR,
+        'fill-opacity': DISTRICT_FILL_OPACITY,
+      },
     });
     map.addLayer({
       id: 'districts-line',
@@ -698,7 +940,11 @@ export default function SupersetPluginChart3DMap(
         ? buildFillColorExpression(visibleData)
         : DEFAULT_STATE_COLOR,
     );
-    map.setPaintProperty('districts-fill', 'fill-opacity', 0.6);
+    map.setPaintProperty(
+      'districts-fill',
+      'fill-opacity',
+      DISTRICT_FILL_OPACITY,
+    );
     map.setLayoutProperty(
       'districts-fill',
       'visibility',
@@ -794,20 +1040,44 @@ export default function SupersetPluginChart3DMap(
   };
 
   return (
-    <Styles height={height} width={width}>
+    <Styles
+      className={
+        areHazardLayersMinimized ? 'hazard-map-layers-minimized' : undefined
+      }
+      height={height}
+      width={width}
+    >
       <header className="hazard-map-header">
         <nav className="hazard-map-tabs" aria-label="Map view">
           {(['warnings', 'sensors', 'forecast'] as const).map(view => (
             <label className="hazard-map-view-toggle" key={view}>
-              {view[0].toUpperCase() + view.slice(1)}
               <Switch
                 checked={enabledViews[view]}
                 size="small"
                 onChange={checked => toggleView(view, checked)}
               />
+              {view[0].toUpperCase() + view.slice(1)}
             </label>
           ))}
         </nav>
+        {latestDatasetEventTime && (
+          <div className="hazard-map-last-updated">
+            <span className="hazard-map-last-updated-icon" aria-hidden="true">
+              <Icons.ClockCircleOutlined iconSize="m" />
+            </span>
+            <div className="hazard-map-last-updated-copy">
+              <span className="hazard-map-last-updated-label">
+                Last updated
+              </span>
+              <time
+                className="hazard-map-last-updated-value"
+                dateTime={latestDatasetEventTime.toISOString()}
+              >
+                {formatLastUpdated(latestDatasetEventTime)}
+              </time>
+            </div>
+          </div>
+        )}
       </header>
       <div className="hazard-map-body">
         <div className="hazard-map-map">
@@ -820,59 +1090,128 @@ export default function SupersetPluginChart3DMap(
         >
           {enabledViews.warnings ? (
             <>
-              <section className="hazard-map-panel" aria-label="Hazard filters">
-                {HAZARDS.map(hazard => (
-                  <div className="hazard-map-option" key={hazard.key}>
-                    <Checkbox
-                      checked={enabledHazards[hazard.key]}
-                      onChange={() => toggleHazard(hazard.key)}
-                    >
-                      <span className="hazard-map-icon" aria-hidden="true">
-                        {hazard.icon}
-                      </span>
-                      {hazard.label}
-                    </Checkbox>
-                  </div>
-                ))}
-              </section>
               <section
-                className="hazard-map-panel"
-                aria-label="Severity legend"
+                className="hazard-map-panel hazard-map-layers"
+                aria-label="Hazard filters"
               >
-                {SEVERITIES.map(([color, label]) => (
-                  <div className="hazard-map-legend-row" key={label}>
-                    <span
-                      className="hazard-map-swatch"
-                      style={{ backgroundColor: color }}
+                <div className="hazard-map-layers-heading">
+                  <div className="hazard-map-panel-title">Hazard Layers</div>
+                  <Button
+                    aria-expanded={!areHazardLayersMinimized}
+                    aria-label={
+                      areHazardLayersMinimized
+                        ? 'Expand hazard layers'
+                        : 'Minimize hazard layers'
+                    }
+                    buttonSize="xsmall"
+                    buttonStyle="link"
+                    icon={
+                      areHazardLayersMinimized ? (
+                        <Icons.DownOutlined iconSize="s" />
+                      ) : (
+                        <Icons.UpOutlined iconSize="s" />
+                      )
+                    }
+                    showMarginRight={false}
+                    onClick={() =>
+                      setAreHazardLayersMinimized(previous => !previous)
+                    }
+                  />
+                </div>
+                {!areHazardLayersMinimized && (
+                  <div className="hazard-map-layers-content">
+                    {availableHazards.map(hazard => (
+                      <div className="hazard-map-option" key={hazard.key}>
+                        <span className="hazard-map-option-label">
+                          <span className="hazard-map-icon" aria-hidden="true">
+                            {hazard.icon}
+                          </span>
+                          {hazard.label}
+                        </span>
+                        <Switch
+                          checked={enabledHazards[hazard.key]}
+                          size="small"
+                          onChange={() => toggleHazard(hazard.key)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+              <div className="hazard-map-legends">
+                <section
+                  className={`hazard-map-panel hazard-map-severity-panel${
+                    isWarningLevelMinimized
+                      ? ' hazard-map-severity-panel-minimized'
+                      : ''
+                  }`}
+                  aria-label="Severity legend"
+                >
+                  <div className="hazard-map-severity-heading">
+                    <div className="hazard-map-panel-title">Warning Level</div>
+                    <Button
+                      aria-expanded={!isWarningLevelMinimized}
+                      aria-label={
+                        isWarningLevelMinimized
+                          ? 'Expand warning level legend'
+                          : 'Minimize warning level legend'
+                      }
+                      buttonSize="xsmall"
+                      buttonStyle="link"
+                      icon={
+                        isWarningLevelMinimized ? (
+                          <Icons.DownOutlined iconSize="s" />
+                        ) : (
+                          <Icons.UpOutlined iconSize="s" />
+                        )
+                      }
+                      showMarginRight={false}
+                      onClick={() =>
+                        setIsWarningLevelMinimized(previous => !previous)
+                      }
                     />
-                    {label}
                   </div>
-                ))}
-              </section>
-              <section
-                className="hazard-map-panel"
-                aria-label="Earthquake magnitude legend"
-              >
-                <div className="hazard-map-panel-title">
-                  Earthquakes (Magnitude)
-                </div>
-                <div className="hazard-map-magnitudes">
-                  {[
-                    [8, '< 3'],
-                    [13, '3–4'],
-                    [18, '4–5'],
-                    [24, '5+'],
-                  ].map(([size, label]) => (
-                    <div className="hazard-map-magnitude" key={label}>
-                      <span
-                        className="hazard-map-magnitude-dot"
-                        style={{ width: size, height: size }}
-                      />
-                      {label}
+                  {!isWarningLevelMinimized && (
+                    <div className="hazard-map-severity-content">
+                      <div className="hazard-map-severity-grid">
+                        {SEVERITIES.map(([color, label]) => (
+                          <div className="hazard-map-legend-row" key={label}>
+                            <span
+                              className="hazard-map-swatch"
+                              style={{ backgroundColor: color }}
+                            />
+                            {label}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </section>
+                  )}
+                </section>
+                {/* <section
+                  className="hazard-map-panel hazard-map-earthquake-panel"
+                  aria-label="Earthquake magnitude legend"
+                >
+                  <div className="hazard-map-panel-title">
+                    Earthquakes (Magnitude)
+                  </div>
+                  <div className="hazard-map-magnitudes">
+                    {[
+                      [8, '< 3'],
+                      [13, '3–4'],
+                      [18, '4–5'],
+                      [24, '5+'],
+                    ].map(([size, label]) => (
+                      <div className="hazard-map-magnitude" key={label}>
+                        <span
+                          className="hazard-map-magnitude-dot"
+                          style={{ width: size, height: size }}
+                        />
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                </section> */}
+              </div>
             </>
           ) : (
             <section className="hazard-map-panel hazard-map-empty">

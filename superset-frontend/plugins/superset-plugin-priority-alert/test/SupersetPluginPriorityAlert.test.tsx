@@ -121,12 +121,12 @@ test('creates tabs from event types and filters alerts by the selected tab', () 
   const data: DataRecord[] = [
     {
       title_en: 'Heavy rain',
-      event_type: 'weather_warning',
+      type: 'weather_warning',
       event_date: today.toISOString(),
     },
     {
       title_en: 'Ground shaking',
-      event_type: 'earthquake',
+      type: 'earthquake',
       event_date: today.toISOString(),
     },
     {
