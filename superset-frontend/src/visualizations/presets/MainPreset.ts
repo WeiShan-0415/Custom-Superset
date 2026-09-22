@@ -92,6 +92,7 @@ import { SupersetPluginChartHelloWorld } from 'superset-plugin-chart-hello-world
 import { SupersetPluginChartCustomDistrictMap } from 'superset-plugin-chart-custom-district-map';
 import { SupersetPluginChart3DMap } from 'superset-plugin-chart-3d-map';
 import { MalaysiaDisasterChartPlugin } from 'superset-plugin-chart-malaysia-disaster';
+import MalaysiaDisasterMapV2ChartPlugin from '../MalaysiaDisasterMapV2';
 import { SupersetPluginChartKpiCard } from 'superset-plugin-chart-kpi-card';
 import { SupersetPluginPriorityAlert } from 'superset-plugin-priority-alert';
 import{SupersetPluginChartHazardRiskOutlook} from 'superset-plugin-chart-hazard-risk-outlook';
@@ -227,6 +228,9 @@ export default class MainPreset extends Preset {
         }),
         new MalaysiaDisasterChartPlugin().configure({
           key: 'malaysia-disaster-watch',
+        }),
+        new MalaysiaDisasterMapV2ChartPlugin().configure({
+          key: 'malaysia_disaster_map_v2',
         }),
         new SupersetPluginChartKpiCard().configure({
           key: 'ext-kpi-card',

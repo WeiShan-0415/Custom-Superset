@@ -1,0 +1,30 @@
+{
+  "source": "Department of Statistics Malaysia (OpenDOSM)",
+  "source_url": "https://open.dosm.gov.my/data-catalogue/population_state",
+  "download_url": "https://storage.dosm.gov.my/population/population_state.csv",
+  "date": "2026-01-01",
+  "unit": "people",
+  "filters": {
+    "sex": "both",
+    "age": "overall",
+    "ethnicity": "overall"
+  },
+  "records": [
+    {"state":"Johor","map_state":"JOHOR","population":4224300},
+    {"state":"Kedah","map_state":"KEDAH","population":2237400},
+    {"state":"Kelantan","map_state":"KELANTAN","population":1925300},
+    {"state":"Melaka","map_state":"MELAKA","population":1057400},
+    {"state":"Negeri Sembilan","map_state":"NEGERI SEMBILAN","population":1248500},
+    {"state":"Pahang","map_state":"PAHANG","population":1686200},
+    {"state":"Perak","map_state":"PERAK","population":2577900},
+    {"state":"Perlis","map_state":"PERLIS","population":297300},
+    {"state":"Pulau Pinang","map_state":"PULAU PINANG","population":1808300},
+    {"state":"Sabah","map_state":"SABAH","population":3767000},
+    {"state":"Sarawak","map_state":"SARAWAK","population":2539800},
+    {"state":"Selangor","map_state":"SELANGOR","population":7454200},
+    {"state":"Terengganu","map_state":"TERENGGANU","population":1260900},
+    {"state":"W.P. Kuala Lumpur","map_state":"WILAYAH PERSEKUTUAN","population":2082300},
+    {"state":"W.P. Labuan","map_state":"WILAYAH PERSEKUTUAN","population":101100},
+    {"state":"W.P. Putrajaya","map_state":"WILAYAH PERSEKUTUAN","population":121400}
+  ]
+}

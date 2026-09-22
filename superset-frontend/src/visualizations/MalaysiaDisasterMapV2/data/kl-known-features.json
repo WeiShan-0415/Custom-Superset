@@ -1,0 +1,220 @@
+{
+  "metadata": {
+    "source": "OpenStreetMap Nominatim",
+    "notice": "A small named Kuala Lumpur landmark and road-reference catalogue. Road entries are geocoded reference points, not complete road geometries.",
+    "queries": 19
+  },
+  "places": [
+    {
+      "name": "PETRONAS Twin Towers",
+      "category": "Landmark",
+      "coordinates": [
+        101.7112048,
+        3.1579679
+      ],
+      "osm_type": "way",
+      "osm_id": 279944536,
+      "source_query": "Petronas Twin Towers, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Kuala Lumpur Tower",
+      "category": "Landmark",
+      "coordinates": [
+        101.7037604,
+        3.152859
+      ],
+      "osm_type": "node",
+      "osm_id": 5839389988,
+      "source_query": "Kuala Lumpur Tower, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Dataran Merdeka",
+      "category": "Square",
+      "coordinates": [
+        101.6936377,
+        3.1487691
+      ],
+      "osm_type": "way",
+      "osm_id": 23069513,
+      "source_query": "Dataran Merdeka, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Central Market",
+      "category": "Market",
+      "coordinates": [
+        101.6954483,
+        3.1440818
+      ],
+      "osm_type": "node",
+      "osm_id": 5151049921,
+      "source_query": "Central Market, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Masjid Negara",
+      "category": "Mosque",
+      "coordinates": [
+        101.6917925,
+        3.1420545
+      ],
+      "osm_type": "way",
+      "osm_id": 585264338,
+      "source_query": "Masjid Negara, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Pavilion Kuala Lumpur",
+      "category": "Shopping centre",
+      "coordinates": [
+        101.7129531,
+        3.149154
+      ],
+      "osm_type": "way",
+      "osm_id": 28271276,
+      "source_query": "Pavilion Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "KL Sentral",
+      "category": "Transport hub",
+      "coordinates": [
+        101.6879957,
+        3.1325849
+      ],
+      "osm_type": "way",
+      "osm_id": 24375045,
+      "source_query": "KL Sentral, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Bukit Bintang",
+      "category": "District",
+      "coordinates": [
+        101.7114762,
+        3.1460953
+      ],
+      "osm_type": "way",
+      "osm_id": 24375094,
+      "source_query": "Bukit Bintang, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Zoo Negara",
+      "category": "Zoo",
+      "coordinates": [
+        101.7577617,
+        3.2106626
+      ],
+      "osm_type": "relation",
+      "osm_id": 17633468,
+      "source_query": "Zoo Negara Malaysia"
+    },
+    {
+      "name": "Batu Caves",
+      "category": "Cave complex",
+      "coordinates": [
+        101.6813757,
+        3.2377959
+      ],
+      "osm_type": "way",
+      "osm_id": 1081572645,
+      "source_query": "Batu Caves, Selangor, Malaysia"
+    }
+  ],
+  "roads": [
+    {
+      "name": "Jalan Ampang",
+      "category": "Road",
+      "coordinates": [
+        101.7295817,
+        3.1605724
+      ],
+      "osm_type": "way",
+      "osm_id": 821260730,
+      "source_query": "Jalan Ampang, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Jalan P. Ramlee",
+      "category": "Road",
+      "coordinates": [
+        101.7067022,
+        3.1519871
+      ],
+      "osm_type": "way",
+      "osm_id": 1240094867,
+      "source_query": "Jalan P. Ramlee, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Jalan Tun Razak",
+      "category": "Road",
+      "coordinates": [
+        101.7152043,
+        3.1653993
+      ],
+      "osm_type": "way",
+      "osm_id": 1161307061,
+      "source_query": "Jalan Tun Razak, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Jalan Sultan Ismail",
+      "category": "Road",
+      "coordinates": [
+        101.7112641,
+        3.1465197
+      ],
+      "osm_type": "way",
+      "osm_id": 770414060,
+      "source_query": "Jalan Sultan Ismail, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Jalan Bukit Bintang",
+      "category": "Road",
+      "coordinates": [
+        101.7108391,
+        3.1464005
+      ],
+      "osm_type": "way",
+      "osm_id": 772269534,
+      "source_query": "Jalan Bukit Bintang, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Jalan Raja Chulan",
+      "category": "Road",
+      "coordinates": [
+        101.7007393,
+        3.1489689
+      ],
+      "osm_type": "way",
+      "osm_id": 1324930562,
+      "source_query": "Jalan Raja Chulan, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Jalan Damansara",
+      "category": "Road",
+      "coordinates": [
+        101.6344376,
+        3.1322156
+      ],
+      "osm_type": "way",
+      "osm_id": 1164408428,
+      "source_query": "Jalan Damansara, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Jalan Kuching",
+      "category": "Road",
+      "coordinates": [
+        101.6713558,
+        3.181531
+      ],
+      "osm_type": "way",
+      "osm_id": 160442603,
+      "source_query": "Jalan Kuching, Kuala Lumpur, Malaysia"
+    },
+    {
+      "name": "Jalan Ipoh",
+      "category": "Road",
+      "coordinates": [
+        101.6811497,
+        3.1893487
+      ],
+      "osm_type": "way",
+      "osm_id": 769010743,
+      "source_query": "Jalan Ipoh, Kuala Lumpur, Malaysia"
+    }
+  ]
+}

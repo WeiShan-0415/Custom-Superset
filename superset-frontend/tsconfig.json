@@ -66,6 +66,7 @@
   },
   "include": [
     "./src/**/*",
+    "./src/visualizations/MalaysiaDisasterMapV2/data/*.json",
     "./spec/**/*",
     "./plugins/**/*",
     "./packages/**/*",

@@ -1,0 +1,47 @@
+{
+  "metadata": {
+    "kind": "prototype_scenario",
+    "updated": "2026-08-20T00:00:00+08:00",
+    "warning": "Affected areas and timing come from a MET Malaysia advisory. Animated wave positions are illustrative and are not model output or an official warning."
+  },
+  "scenarios": [
+    {
+      "id": "met-2026-06-08-mindanao",
+      "title": "Mindanao tsunami advisory — Sabah east coast",
+      "issued_at": "2026-06-08T08:34:00+08:00",
+      "event_time": "2026-06-08T07:37:45+08:00",
+      "warning_level": "Tsunami advisory",
+      "status": "Historical prototype",
+      "earthquake": {
+        "location": "Mindanao, Philippines",
+        "magnitude": 7.9,
+        "depth_km": 50,
+        "coordinates": [125.11116, 5.688386]
+      },
+      "expected_wave_height_m": 0.4,
+      "affected_state": "SABAH",
+      "affected_areas": [
+        {"name": "Tawau", "coordinates": [117.8912, 4.2448]},
+        {"name": "Semporna", "coordinates": [118.6112, 4.4811]},
+        {"name": "Kunak", "coordinates": [118.2500, 4.6833]},
+        {"name": "Lahad Datu", "coordinates": [118.3270, 5.0268]}
+      ],
+      "expected_arrival_from": "2026-06-08T10:30:00+08:00",
+      "expected_arrival_to": "2026-06-08T12:00:00+08:00",
+      "instruction": "The linked data.gov.my record verifies the earthquake only. The 0.4 m height, affected coastal areas and arrival window were transcribed from a formerly public MET Malaysia statement that is no longer accessible. This historical prototype must not be used for emergency decisions.",
+      "source_name": "Malaysia Open API / MET Malaysia",
+      "source_url": "https://api.data.gov.my/weather/warning/earthquake?timestamp_start=2026-06-08%2000%3A00%3A00%40localdatetime&timestamp_end=2026-06-08%2023%3A59%3A59%40localdatetime&limit=100",
+      "advisory_source_status": "Archived MET Malaysia statement; original PDF URL currently returns 404",
+      "wave_frames": [
+        {"minutes": 0, "label": "07:37"},
+        {"minutes": 25, "label": "08:02"},
+        {"minutes": 50, "label": "08:27"},
+        {"minutes": 75, "label": "08:52"},
+        {"minutes": 100, "label": "09:17"},
+        {"minutes": 125, "label": "09:42"},
+        {"minutes": 150, "label": "10:07"},
+        {"minutes": 175, "label": "10:32"}
+      ]
+    }
+  ]
+}

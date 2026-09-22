@@ -1607,7 +1607,14 @@ EXTENSION_STARTUP_LOCK_TIMEOUT = 30  # Timeout in seconds for extension update l
 # a reference to the Flask app. This can be used to alter the Flask app
 # in whatever way.
 # example: FLASK_APP_MUTATOR = lambda x: x.before_request = f
-FLASK_APP_MUTATOR = None
+def _register_malaysia_map_api(app) -> None:
+    """Load the Malaysia map API bundled in the custom image."""
+    from superset.malaysia_map_api import register_malaysia_map_api
+
+    register_malaysia_map_api(app)
+
+
+FLASK_APP_MUTATOR = _register_malaysia_map_api
 
 # smtp server configuration
 SMTP_HOST = "localhost"
