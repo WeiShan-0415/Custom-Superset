@@ -6,7 +6,7 @@ from typing import Any
 
 import psycopg2
 from flask import Blueprint, Flask, jsonify, request
-from flask_login import login_required
+from flask_login import current_user
 
 from superset.utils import json
 
@@ -48,7 +48,7 @@ def _polygon_geometry(payload: Any) -> dict[str, Any]:
 
 def _connection() -> Any:
     return psycopg2.connect(
-        host=os.environ.get("MALAYSIA_MAP_DB_HOST", "platform-postgis-ro"),
+        host=os.environ.get("MALAYSIA_MAP_DB_HOST", "platform-postgis-rw"),
         port=int(os.environ.get("MALAYSIA_MAP_DB_PORT", "5432")),
         dbname=os.environ.get("MALAYSIA_MAP_DB_NAME", "geospatial"),
         user=os.environ["MALAYSIA_MAP_DB_USER"],
@@ -70,8 +70,9 @@ def _rows(cursor: Any) -> list[dict[str, Any]]:
 
 
 @BLUEPRINT.post("/within")
-@login_required
 def features_within() -> Any:
+    if not current_user.is_authenticated:
+        return jsonify(error="Authentication required"), 401
     if request.content_length and request.content_length > MAX_BODY_BYTES:
         return jsonify(error="Request body is too large"), 413
     try:
