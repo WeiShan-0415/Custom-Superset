@@ -6,7 +6,7 @@ const config: ControlPanelConfig = {
     {
       label: t('Query'),
       expanded: true,
-      controlSetRows: [['adhoc_filters'], ['row_limit']],
+      controlSetRows: [['metrics'], ['adhoc_filters'], ['row_limit']],
     },
     {
       label: t('Map'),
