@@ -1,5 +1,13 @@
 # Changes
 
+## Feature: responsive floating command deck
+
+Redesigned the hazard map as a full-bleed map with a floating, translucent
+command bar, a switch-based hazard-layer card, and compact warning and
+earthquake legends. The overlays adapt to the chart width and move MapLibre's
+native controls away from the command deck while preserving all existing map,
+filtering, terrain, and hazard-layer behavior.
+
 ## Feature: live hazard map interface
 
 Restyled the chart as a dark live-hazard workspace with a header, warning/sensor/forecast
@@ -291,12 +299,12 @@ undone in full, not just cosmetically.
 **Request:** when a state is clicked, show its name above the map.
 
 **Change:** the component's root element is now split into two: an outer `Styles` wrapper
-(sized to the chart's `height`/`width`) and an inner `.map-container` div that's the *only*
+(sized to the chart's `height`/`width`) and an inner `.map-container` div that's the _only_
 element MapLibre's `container` option ever touches. A `.state-title` div — plain React JSX,
 rendered as a sibling of `.map-container`, not a child of it — shows `getStateLabel
 (selectedStateKey)` as an absolutely-positioned bar across the top whenever a state is
 selected, and renders nothing otherwise. Split deliberately: MapLibre takes ownership of its
-container element's DOM once initialized, so rendering the title as a React child *inside*
+container element's DOM once initialized, so rendering the title as a React child _inside_
 that same element would risk React and MapLibre fighting over the same DOM subtree (MapLibre
 appends its own canvas/control nodes there; React's reconciliation doesn't know about them).
 Keeping the title as a sibling avoids that entirely — no `map.resize()` call is needed either,
@@ -325,7 +333,7 @@ each feature in the already-loaded `districtsFC.features`, same pattern the sibl
 `superset-plugin-chart-custom-district-map` uses `d3` for (added as a `dependency` here too,
 matching that plugin's `d3`/`@types/d3` versions and its namespace-import workaround for d3
 v7 having no default export). The click-outside-clears and select/deselect logic is otherwise
-unchanged — only *how* the clicked state is determined moved from MapLibre to d3-geo.
+unchanged — only _how_ the clicked state is determined moved from MapLibre to d3-geo.
 
 ## Revert: state name above the map
 
@@ -348,7 +356,7 @@ state was effectively unclickable.
 district-map` plugin already hit and documented (its `CHANGES.md` item 8): `d3-geo` follows
 RFC 7946's right-hand rule (exterior rings wound clockwise in the lon/lat plane), but these
 district files are wound the opposite way. `d3.geoContains` therefore treated almost every
-polygon as its own geometric *complement* — matching nearly the entire globe *except* the
+polygon as its own geometric _complement_ — matching nearly the entire globe _except_ the
 district's real shape. Since `districtsFC.features.find(...)` returns the first match, and
 Johor is the first state merged into the collection (`districts/index.ts`'s import order),
 practically any click resolved to "the point is in the complement of some Johor district" —
@@ -368,7 +376,7 @@ corrects both cases.
 
 **Also fixed:** the plugin's own `jest.config.js` `transformIgnorePatterns` only allowlisted a
 handful of specific `d3-*` submodules (a scaffold leftover), not the full `d3` package now
-imported directly — `d3`'s own entry point re-exports every d3-* submodule (including
+imported directly — `d3`'s own entry point re-exports every d3-\* submodule (including
 `d3-delaunay`, which pulls in the ESM-only `delaunator`/`robust-predicates`), all of which
 need Babel transformation same as those already-listed ones. Broadened the pattern to
 `d3(-[a-z-]+)?` plus `delaunator`/`robust-predicates` rather than trying to enumerate every
@@ -400,7 +408,7 @@ actually rendered.
 not just over the sea, but over Malaysia's own land area too.
 
 **Cause:** the base style's very first layer is an opaque `background` fill covering the
-*entire* viewport (a standard base layer in vector styles, meant to paint underneath
+_entire_ viewport (a standard base layer in vector styles, meant to paint underneath
 everything). Inserting `hillshade` before that layer put it underneath an opaque layer that
 covers 100% of the canvas, not just the water — hiding it everywhere, land included.
 
@@ -524,7 +532,7 @@ are available, and the resulting feature count — logged every time the effect 
 clicking a different state on the map — `data` (this chart's own query result) never narrows
 in response to this chart's own emitted cross-filter at all. That's expected Superset
 behavior: cross-filter scope defaults to excluding the emitting chart from its own filter, so
-this chart's query only ever changes in response to something *external* to it (a native
+this chart's query only ever changes in response to something _external_ to it (a native
 dashboard filter, or another chart's cross-filter explicitly scoped to include this one) —
 never its own clicks.
 
@@ -565,6 +573,7 @@ two contributions with near-canceling signed areas), not just `NaN` — so a sim
 `Number.isFinite` check wasn't sufficient to catch every failure mode.
 
 **Fix:**
+
 - `computeStateCentroids` now discards any centroid that isn't finite, rather than storing an
   unusable `NaN` point (tested by mocking `d3.geoCentroid`'s return value directly, since no
   synthetic GeoJSON fixture reliably reproduced the real degenerate case — empirically,
@@ -583,13 +592,13 @@ two contributions with near-canceling signed areas), not just `NaN` — so a sim
 
 **Context:** the Kedah SQL query in the previous exchange made clear `data` genuinely does get
 narrowed by filters that are external to this chart — a native dashboard filter, or another
-chart's cross-filter scoped to include this one (this chart's *own* clicks stay excluded per
+chart's cross-filter scoped to include this one (this chart's _own_ clicks stay excluded per
 Superset's default cross-filter scope, but that's not the only way `data` can narrow). The
 badges were still built directly from `data`, so any of those external filters would narrow
 the badges down too.
 
 **Change:** added `badgeData`, a render-time cache (same "adjust state during render" pattern
-used elsewhere in this file) of the *largest* `data` result seen so far — it only ever grows,
+used elsewhere in this file) of the _largest_ `data` result seen so far — it only ever grows,
 never shrinks, so once a fuller picture has been observed, a later filter narrowing `data`
 back down no longer affects it. The badge source-update effect now reads from `badgeData`
 instead of `data` directly, decoupling the badges from every filter source, not just this
@@ -601,6 +610,7 @@ chart's own clicks.
 disaster-count badges no longer affected by filtering" changes above.
 
 **Change:**
+
 - `computeStateCentroids` (`src/geo/centroids.ts`) no longer discards non-finite centroids —
   back to unconditionally storing whatever `d3.geoCentroid` returns. Its dedicated Jest test
   (mocking `d3.geoCentroid` to return `[NaN, NaN]`) was removed along with it.

@@ -23,7 +23,7 @@
 // workaround in SupersetPluginChartCustomDistrictMap.tsx.
 // eslint-disable-next-line no-restricted-syntax
 import React from 'react';
-import type { FeatureCollection, Point } from 'geojson';
+import type { FeatureCollection, Point, Polygon } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { styled } from '@apache-superset/core/theme';
@@ -34,6 +34,11 @@ import {
 } from './geo/loadDistricts';
 import { MALAYSIA_PAN_BOUNDS } from './geo/bounds';
 import { computeStateCentroids } from './geo/centroids';
+import {
+  calculateShakingRadii,
+  createShakingZone,
+  ShakingZoneProperties,
+} from './geo/shakingZones';
 import {
   SupersetPluginChart3DMapProps,
   SupersetPluginChart3DMapStylesProps,
@@ -258,6 +263,10 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
       ${({ theme }) => theme.sizeUnit * 4}px;
   }
 
+  .hazard-map-earthquake-panel .hazard-map-severity-grid {
+    grid-template-columns: 1fr;
+  }
+
   .hazard-map-legend-row {
     display: flex;
     align-items: center;
@@ -272,33 +281,9 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
     width: 14px;
     height: 14px;
     flex: 0 0 14px;
-    border: 1px solid #fff;
+    border: 1px solid rgb(255 255 255 / 85%);
     border-radius: 50%;
-  }
-
-  .hazard-map-magnitudes {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: ${({ theme }) => theme.sizeUnit * 5}px;
-    height: 36px;
-    padding: 0 ${({ theme }) => theme.sizeUnit}px;
-  }
-
-  .hazard-map-magnitude {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: ${({ theme }) => theme.sizeUnit}px;
-    color: #52658f;
-    font-size: ${({ theme }) => theme.fontSizeSM}px;
-    font-weight: ${({ theme }) => theme.fontWeightStrong};
-  }
-
-  .hazard-map-magnitude-dot {
-    background: #8557c7;
-    border: 1px solid #d8c5ff;
-    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgb(15 31 77 / 12%);
   }
 
   .hazard-map-empty {
@@ -399,11 +384,20 @@ const SEVERITY_NONE_COLOR = '#2ca25f';
 const SEVERITY_MODERATE_COLOR = '#f4c430';
 const SEVERITY_WARNING_COLOR = '#f97316';
 const SEVERITY_HIGH_COLOR = '#e63946';
+// Hazard colors must retain their fixed semantic meaning across themes.
+// eslint-disable-next-line theme-colors/no-literal-colors
+const EARTHQUAKE_STRONG_COLOR = '#e63946';
 const DEFAULT_STATE_COLOR = SEVERITY_NONE_COLOR;
 const DISTRICT_BORDER_COLOR = '#ffffff';
 const DISTRICT_FILL_OPACITY = 0.5;
 const EARTHQUAKE_SOURCE_ID = 'earthquakes';
 const EARTHQUAKE_LAYER_ID = 'earthquake-points';
+const EARTHQUAKE_ZONE_SOURCE_ID = 'earthquake-shaking-zones';
+const EARTHQUAKE_ZONE_LEVELS = [
+  { level: 'light', label: 'Light shaking', color: SEVERITY_MODERATE_COLOR },
+  { level: 'medium', label: 'Medium shaking', color: SEVERITY_WARNING_COLOR },
+  { level: 'strong', label: 'Strong shaking', color: EARTHQUAKE_STRONG_COLOR },
+] as const;
 
 type HazardKey =
   | 'strongWinds'
@@ -730,7 +724,6 @@ export default function SupersetPluginChart3DMap(
         map.triggerRepaint();
       });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }));
-    map.addControl(new maplibregl.ScaleControl());
     // Default mouse-wheel zoom rate (1/450 per line) feels sluggish at
     // country scale; double it so each scroll tick moves further.
     map.scrollZoom.setWheelZoomRate(1 / 56.25);
@@ -851,6 +844,37 @@ export default function SupersetPluginChart3DMap(
       type: 'geojson',
       data: { type: 'FeatureCollection', features: [] },
     });
+    map.addSource(EARTHQUAKE_ZONE_SOURCE_ID, {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+    EARTHQUAKE_ZONE_LEVELS.forEach(({ level, color }) => {
+      map.addLayer({
+        id: `earthquake-zone-${level}`,
+        type: 'fill',
+        source: EARTHQUAKE_ZONE_SOURCE_ID,
+        filter: ['==', ['get', 'level'], level],
+        paint: {
+          'fill-color': color,
+          'fill-opacity':
+            level === 'strong' ? 0.38 : level === 'medium' ? 0.27 : 0.18,
+        },
+      });
+    });
+    EARTHQUAKE_ZONE_LEVELS.forEach(({ level, color }) => {
+      map.addLayer({
+        id: `earthquake-zone-${level}-outline`,
+        type: 'line',
+        source: EARTHQUAKE_ZONE_SOURCE_ID,
+        filter: ['==', ['get', 'level'], level],
+        paint: {
+          'line-color': color,
+          'line-width': level === 'strong' ? 1.75 : 1.25,
+          'line-opacity': level === 'light' ? 0.62 : 0.82,
+          'line-blur': 0.2,
+        },
+      });
+    });
     map.addLayer({
       id: EARTHQUAKE_LAYER_ID,
       type: 'circle',
@@ -861,28 +885,18 @@ export default function SupersetPluginChart3DMap(
           ['linear'],
           ['coalesce', ['get', 'magnitude'], 0],
           0,
+          3,
           4,
-          4,
-          7,
+          4.5,
           6,
-          13,
-          8,
-          22,
-        ],
-        'circle-color': [
-          'interpolate',
-          ['linear'],
-          ['coalesce', ['get', 'magnitude'], 0],
-          0,
-          '#f4c430',
-          5,
-          '#f97316',
           7,
-          '#e63946',
+          8,
+          11,
         ],
-        'circle-opacity': 0.85,
+        'circle-color': EARTHQUAKE_STRONG_COLOR,
+        'circle-opacity': 0.9,
         'circle-stroke-color': DISTRICT_BORDER_COLOR,
-        'circle-stroke-width': 1.5,
+        'circle-stroke-width': 1.25,
       },
     });
 
@@ -905,6 +919,24 @@ export default function SupersetPluginChart3DMap(
         ['Location', properties.location],
         ['Magnitude', properties.magnitude],
         ['Depth', properties.depth != null ? `${properties.depth} km` : null],
+        [
+          'Strong shaking radius',
+          properties.strongRadiusKm != null
+            ? `${Math.round(properties.strongRadiusKm)} km`
+            : null,
+        ],
+        [
+          'Medium shaking radius',
+          properties.mediumRadiusKm != null
+            ? `${Math.round(properties.mediumRadiusKm)} km`
+            : null,
+        ],
+        [
+          'Light shaking radius',
+          properties.lightRadiusKm != null
+            ? `${Math.round(properties.lightRadiusKm)} km`
+            : null,
+        ],
         ['Time', formatEventTime(properties.eventTime)],
       ].forEach(([label, value]) => {
         if (value === null || value === undefined || value === '') return;
@@ -918,12 +950,14 @@ export default function SupersetPluginChart3DMap(
         .addTo(map);
     });
 
-    // Keep 3D buildings disabled, including any extrusion layers supplied
-    // by the base map style. Terrain remains available independently.
+    // The base style supplies building extrusions at close zoom levels.
+    // Explicit visibility keeps them available alongside terrain.
     map
       .getStyle()
       .layers?.filter(layer => layer.type === 'fill-extrusion')
-      .forEach(layer => map.setLayoutProperty(layer.id, 'visibility', 'none'));
+      .forEach(layer =>
+        map.setLayoutProperty(layer.id, 'visibility', 'visible'),
+      );
   }, [mapLoaded, districtsFC]);
 
   // Fill color / district border visibility react to prop changes on an
@@ -963,18 +997,26 @@ export default function SupersetPluginChart3DMap(
     districtsFC,
   ]);
 
+  // The GeoJSON is sent to an external MapLibre source, not to a React parent.
+  /* eslint-disable react-you-might-not-need-an-effect/no-pass-data-to-parent */
+  /* eslint-disable react-you-might-not-need-an-effect/no-pass-live-state-to-parent */
   React.useEffect(() => {
     const map = mapRef.current;
     const source = map?.getSource(
       EARTHQUAKE_SOURCE_ID,
     ) as maplibregl.GeoJSONSource | null;
-    if (!source) return;
+    const zoneSource = map?.getSource(
+      EARTHQUAKE_ZONE_SOURCE_ID,
+    ) as maplibregl.GeoJSONSource | null;
+    if (!source || !zoneSource) return;
+    const visibleEarthquakes =
+      enabledHazards.earthquake && enabledViews.warnings ? earthquakes : [];
+    const radii = visibleEarthquakes.map(earthquake =>
+      calculateShakingRadii(earthquake.magnitude, earthquake.depth),
+    );
     const featureCollection: FeatureCollection<Point> = {
       type: 'FeatureCollection',
-      features: (enabledHazards.earthquake && enabledViews.warnings
-        ? earthquakes
-        : []
-      ).map(earthquake => ({
+      features: visibleEarthquakes.map((earthquake, index) => ({
         type: 'Feature',
         geometry: {
           type: 'Point',
@@ -986,9 +1028,36 @@ export default function SupersetPluginChart3DMap(
           location: earthquake.location,
           eventTime: earthquake.eventTime,
           title: earthquake.title,
+          strongRadiusKm: radii[index].strong,
+          mediumRadiusKm: radii[index].medium,
+          lightRadiusKm: radii[index].light,
         },
       })),
     };
+    const zoneFeatureCollection: FeatureCollection<
+      Polygon,
+      ShakingZoneProperties
+    > = {
+      type: 'FeatureCollection',
+      features: EARTHQUAKE_ZONE_LEVELS.flatMap(({ level }) =>
+        visibleEarthquakes.map((earthquake, index) => {
+          const innerRadiusKm =
+            level === 'light'
+              ? radii[index].medium
+              : level === 'medium'
+                ? radii[index].strong
+                : undefined;
+          return createShakingZone(
+            earthquake.longitude,
+            earthquake.latitude,
+            radii[index][level],
+            level,
+            innerRadiusKm,
+          );
+        }),
+      ),
+    };
+    zoneSource.setData(zoneFeatureCollection);
     source.setData(featureCollection);
   }, [
     earthquakes,
@@ -997,6 +1066,8 @@ export default function SupersetPluginChart3DMap(
     mapLoaded,
     districtsFC,
   ]);
+  /* eslint-enable react-you-might-not-need-an-effect/no-pass-data-to-parent */
+  /* eslint-enable react-you-might-not-need-an-effect/no-pass-live-state-to-parent */
 
   // Fly/zoom the camera to the active state (or back out to the whole
   // country). The `zoomend` listener above derives pitch after the camera
@@ -1189,22 +1260,17 @@ export default function SupersetPluginChart3DMap(
                 </section>
                 {/* <section
                   className="hazard-map-panel hazard-map-earthquake-panel"
-                  aria-label="Earthquake magnitude legend"
+                  aria-label="Earthquake shaking legend"
                 >
                   <div className="hazard-map-panel-title">
-                    Earthquakes (Magnitude)
+                    Earthquake shaking
                   </div>
-                  <div className="hazard-map-magnitudes">
-                    {[
-                      [8, '< 3'],
-                      [13, '3–4'],
-                      [18, '4–5'],
-                      [24, '5+'],
-                    ].map(([size, label]) => (
-                      <div className="hazard-map-magnitude" key={label}>
+                  <div className="hazard-map-severity-grid">
+                    {EARTHQUAKE_ZONE_LEVELS.map(({ label, color }) => (
+                      <div className="hazard-map-legend-row" key={label}>
                         <span
-                          className="hazard-map-magnitude-dot"
-                          style={{ width: size, height: size }}
+                          className="hazard-map-swatch"
+                          style={{ backgroundColor: color }}
                         />
                         {label}
                       </div>
