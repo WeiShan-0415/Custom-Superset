@@ -49,6 +49,10 @@ const config: ControlPanelConfig = {
                 'Column containing the Malaysian state/territory name (e.g. "Selangor", "Sabah"). ' +
                   'The combined dataset must also expose warning_key, event_type, event_time, ' +
                   'title, severity, lat, lon, depth, magnitude, and location columns. ' +
+                  'Tsunami animation also uses affected_areas, wave_frames, ' +
+                  'earthquake_coordinates, earthquake_location, expected_wave_height_m, ' +
+                  'valid_from, valid_to, instruction, source_name, source_url, and ' +
+                  'advisory_source_status. ' +
                   'Clicking a state on the map filters this column; a dashboard filter that narrows ' +
                   'the data to one state flies the map into it.',
               ),

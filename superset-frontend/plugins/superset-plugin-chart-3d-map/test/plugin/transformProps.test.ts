@@ -63,7 +63,9 @@ describe('SupersetPluginChart3DMap transformProps', () => {
         },
       ],
       earthquakes: [],
+      tsunamis: [],
       activeStateKey: null,
+      activeWarningKey: null,
       stateColumn: 'state_name',
       showDistrictBorders: false,
       sliceId: 42,
@@ -127,6 +129,7 @@ describe('SupersetPluginChart3DMap transformProps', () => {
         metric: 2,
       },
     ]);
+    expect(transformProps(chartProps).activeWarningKey).toBe('warning-1');
   });
 
   it('should transform valid earthquake rows and ignore invalid coordinates', () => {
@@ -248,6 +251,57 @@ describe('SupersetPluginChart3DMap transformProps', () => {
       },
     ]);
     expect(result.activeStateKey).toBe('selangor');
+  });
+
+  it('should parse tsunami animation frames and affected areas', () => {
+    const chartProps = new ChartProps({
+      formData,
+      width: 800,
+      height: 600,
+      theme: supersetTheme,
+      hooks: { setDataMask },
+      filterState: {},
+      queriesData: [
+        {
+          data: [
+            {
+              warning_key: 'tsunami-1',
+              event_type: 'tsunami',
+              state_name: 'Sabah',
+              event_time: '2026-06-08T07:37:45+08:00',
+              title: 'Tsunami',
+              severity: 3,
+              expected_wave_height_m: 0.4,
+              affected_areas: JSON.stringify([
+                { name: 'Tawau', coordinates: [117.8912, 4.2448] },
+              ]),
+              wave_frames: JSON.stringify([
+                { label: '07:37', minutes: 0 },
+                { label: '08:02', minutes: 25 },
+              ]),
+              earthquake_location: 'Mindanao, Philippines',
+              earthquake_coordinates: '[125.11116, 5.688386]',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(transformProps(chartProps).tsunamis).toEqual([
+      expect.objectContaining({
+        warningKey: 'tsunami-1',
+        stateName: 'Sabah',
+        expectedWaveHeightM: 0.4,
+        earthquakeLocation: 'Mindanao, Philippines',
+        earthquakeCoordinates: [125.11116, 5.688386],
+        affectedAreas: [{ name: 'Tawau', coordinates: [117.8912, 4.2448] }],
+        waveFrames: [
+          { label: '07:37', minutes: 0 },
+          { label: '08:02', minutes: 25 },
+        ],
+      }),
+    ]);
+    expect(transformProps(chartProps).activeWarningKey).toBe('tsunami-1');
   });
 
   it('should derive the active state from a single-state result when filterState is unset (native filter)', () => {

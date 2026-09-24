@@ -23,11 +23,12 @@
 // workaround in SupersetPluginChartCustomDistrictMap.tsx.
 // eslint-disable-next-line no-restricted-syntax
 import React from 'react';
-import type { FeatureCollection, Point, Polygon } from 'geojson';
+import type { FeatureCollection, LineString, Point, Polygon } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { styled } from '@apache-superset/core/theme';
 import { Button, Icons, Switch } from '@superset-ui/core/components';
+import Slider from '@superset-ui/core/components/Slider';
 import {
   AllDistrictsFeatureCollection,
   loadAllDistricts,
@@ -40,6 +41,7 @@ import {
   ShakingZoneProperties,
 } from './geo/shakingZones';
 import {
+  EarthquakeDataItem,
   SupersetPluginChart3DMapProps,
   SupersetPluginChart3DMapStylesProps,
 } from './types';
@@ -311,6 +313,66 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
     border-radius: ${({ theme }) => theme.borderRadius}px;
   }
 
+  .hazard-map-tsunami-model {
+    color: #0284c7;
+    font-size: 10px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .hazard-map-tsunami-timeline {
+    position: absolute;
+    right: ${({ theme }) => theme.sizeUnit * 3}px;
+    bottom: ${({ theme }) => theme.sizeUnit * 5}px;
+    display: ${({ width }) => (width >= 520 ? 'block' : 'none')};
+    width: ${({ width }) => (width >= 840 ? '340px' : '280px')};
+  }
+
+  .hazard-map-tsunami-timeline-minimized {
+    width: 220px;
+  }
+
+  .hazard-map-tsunami-timeline-header,
+  .hazard-map-tsunami-scale {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${({ theme }) => theme.sizeUnit * 2}px;
+  }
+
+  .hazard-map-tsunami-actions {
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.sizeUnit}px;
+  }
+
+  .hazard-map-tsunami-frame {
+    color: #0f1f4d;
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
+    letter-spacing: normal;
+  }
+
+  .hazard-map-tsunami-slider {
+    margin: ${({ theme }) => theme.sizeUnit * 3}px 0
+      ${({ theme }) => theme.sizeUnit}px;
+  }
+
+  .hazard-map-tsunami-scale {
+    color: #52658f;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .hazard-map-tsunami-note {
+    margin-top: ${({ theme }) => theme.sizeUnit * 3}px;
+    color: #52658f;
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
   .maplibregl-popup-content {
     color: #1f2937;
   }
@@ -393,6 +455,11 @@ const DISTRICT_FILL_OPACITY = 0.5;
 const EARTHQUAKE_SOURCE_ID = 'earthquakes';
 const EARTHQUAKE_LAYER_ID = 'earthquake-points';
 const EARTHQUAKE_ZONE_SOURCE_ID = 'earthquake-shaking-zones';
+const TSUNAMI_WAVE_SOURCE_ID = 'tsunami-waves';
+const TSUNAMI_LOCATION_SOURCE_ID = 'tsunami-locations';
+const TSUNAMI_COLOR = '#00458a';
+const EARTH_RADIUS_KM = 6371.0088;
+const TSUNAMI_WAVE_TRAILS = [0, 0.08, 0.16] as const;
 const EARTHQUAKE_ZONE_LEVELS = [
   { level: 'light', label: 'Light shaking', color: SEVERITY_MODERATE_COLOR },
   { level: 'medium', label: 'Medium shaking', color: SEVERITY_WARNING_COLOR },
@@ -404,7 +471,8 @@ type HazardKey =
   | 'thunderstorm'
   | 'landslide'
   | 'flood'
-  | 'earthquake';
+  | 'earthquake'
+  | 'tsunami';
 type ViewKey = 'warnings' | 'sensors' | 'forecast';
 
 type Hazard = {
@@ -445,6 +513,7 @@ const HAZARDS: ReadonlyArray<Hazard> = [
     titleIncludes: ['flood'],
   },
   { key: 'earthquake', label: 'Earthquake', icon: '◉', eventTypes: [] },
+  { key: 'tsunami', label: 'Tsunami', icon: '≋', eventTypes: ['tsunami'] },
 ];
 
 const SEVERITIES = [
@@ -479,25 +548,6 @@ function pitchForZoom(zoom: number): number {
   if (zoom >= MAX_PITCH_ZOOM) return MAX_PITCH;
   const t = (zoom - MIN_PITCH_ZOOM) / (MAX_PITCH_ZOOM - MIN_PITCH_ZOOM);
   return MAX_PITCH * t;
-}
-
-function formatEventTime(value: unknown): string {
-  const rawValue = String(value ?? '');
-  if (!/^\d+$/.test(rawValue)) return rawValue;
-  const timestamp = Number(rawValue);
-  if (!Number.isFinite(timestamp)) return rawValue;
-  // Superset commonly serializes temporal values as Unix milliseconds. Also
-  // accept Unix seconds for datasets that expose epoch values directly.
-  const date = new Date(
-    timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp,
-  );
-  if (Number.isNaN(date.getTime())) return rawValue;
-  const pad = (part: number) => String(part).padStart(2, '0');
-  return `${pad(date.getDate())}/${pad(
-    date.getMonth() + 1,
-  )}/${date.getFullYear()} ${pad(date.getHours())}:${pad(
-    date.getMinutes(),
-  )}:${pad(date.getSeconds())}`;
 }
 
 function parseEventTime(value: string | undefined): Date | undefined {
@@ -579,15 +629,90 @@ function buildFillColorExpression(
   ];
 }
 
+function getEarthquakeKey(earthquake: EarthquakeDataItem): string {
+  return [
+    earthquake.longitude,
+    earthquake.latitude,
+    earthquake.eventTime ?? '',
+  ].join(':');
+}
+
+function degreesToRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function radiansToDegrees(value: number): number {
+  return (value * 180) / Math.PI;
+}
+
+function distanceBetweenCoordinatesKm(
+  start: [number, number],
+  end: [number, number],
+): number {
+  const latitudeDelta = degreesToRadians(end[1] - start[1]);
+  const longitudeDelta = degreesToRadians(end[0] - start[0]);
+  const startLatitude = degreesToRadians(start[1]);
+  const endLatitude = degreesToRadians(end[1]);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(startLatitude) *
+      Math.cos(endLatitude) *
+      Math.sin(longitudeDelta / 2) ** 2;
+  const clampedHaversine = Math.min(1, Math.max(0, haversine));
+  return (
+    EARTH_RADIUS_KM *
+    2 *
+    Math.atan2(Math.sqrt(clampedHaversine), Math.sqrt(1 - clampedHaversine))
+  );
+}
+
+function createWaveRing(
+  center: [number, number],
+  radiusKm: number,
+): LineString {
+  const angularDistance = radiusKm / EARTH_RADIUS_KM;
+  const centerLatitude = degreesToRadians(center[1]);
+  const centerLongitude = degreesToRadians(center[0]);
+  const coordinates: [number, number][] = [];
+  const pointCount = 128;
+
+  for (let index = 0; index <= pointCount; index += 1) {
+    const bearing = (index / pointCount) * Math.PI * 2;
+    const latitude = Math.asin(
+      Math.sin(centerLatitude) * Math.cos(angularDistance) +
+        Math.cos(centerLatitude) *
+          Math.sin(angularDistance) *
+          Math.cos(bearing),
+    );
+    const longitude =
+      centerLongitude +
+      Math.atan2(
+        Math.sin(bearing) *
+          Math.sin(angularDistance) *
+          Math.cos(centerLatitude),
+        Math.cos(angularDistance) -
+          Math.sin(centerLatitude) * Math.sin(latitude),
+      );
+    coordinates.push([
+      ((radiansToDegrees(longitude) + 540) % 360) - 180,
+      radiansToDegrees(latitude),
+    ]);
+  }
+
+  return { type: 'LineString', coordinates };
+}
+
 export default function SupersetPluginChart3DMap(
   props: SupersetPluginChart3DMapProps,
 ) {
   const {
     data,
     earthquakes,
+    tsunamis,
     height,
     width,
     activeStateKey,
+    activeWarningKey,
     showDistrictBorders,
   } = props;
 
@@ -609,11 +734,19 @@ export default function SupersetPluginChart3DMap(
     landslide: true,
     flood: true,
     earthquake: true,
+    tsunami: true,
   });
   const [areHazardLayersMinimized, setAreHazardLayersMinimized] =
-    React.useState(false);
+    React.useState(true);
   const [isWarningLevelMinimized, setIsWarningLevelMinimized] =
-    React.useState(false);
+    React.useState(true);
+  const [tsunamiFrameIndex, setTsunamiFrameIndex] = React.useState(0);
+  const [isTsunamiPlaying, setIsTsunamiPlaying] = React.useState(false);
+  const [isTsunamiTimelineMinimized, setIsTsunamiTimelineMinimized] =
+    React.useState(true);
+  const [selectedEarthquakeKey, setSelectedEarthquakeKey] = React.useState<
+    string | null
+  >(null);
 
   // Native Superset filters drive the active state through transformed query
   // data. Map interaction itself does not emit or clear dashboard filters.
@@ -635,12 +768,52 @@ export default function SupersetPluginChart3DMap(
   }, [data]);
 
   const latestDatasetEventTime = React.useMemo(() => {
-    const eventTimes = [...data, ...earthquakes]
+    const eventTimes = [...data, ...earthquakes, ...tsunamis]
       .map(item => parseEventTime(item.eventTime))
       .filter((date): date is Date => Boolean(date));
     if (eventTimes.length === 0) return undefined;
     return new Date(Math.max(...eventTimes.map(date => date.getTime())));
-  }, [data, earthquakes]);
+  }, [data, earthquakes, tsunamis]);
+
+  const activeTsunami = React.useMemo(
+    () =>
+      [...tsunamis].sort(
+        (first, second) =>
+          (parseEventTime(second.eventTime)?.getTime() ?? 0) -
+          (parseEventTime(first.eventTime)?.getTime() ?? 0),
+      )[0],
+    [tsunamis],
+  );
+
+  const selectedEarthquake = React.useMemo(
+    () =>
+      activeWarningKey
+        ? earthquakes.find(item => item.warningKey === activeWarningKey)
+        : undefined,
+    [activeWarningKey, earthquakes],
+  );
+
+  const selectedTsunami = React.useMemo(
+    () =>
+      activeWarningKey
+        ? tsunamis.find(item => item.warningKey === activeWarningKey)
+        : undefined,
+    [activeWarningKey, tsunamis],
+  );
+
+  const selectedWarning = React.useMemo(
+    () =>
+      activeWarningKey
+        ? data.find(
+            item =>
+              item.warningKey === activeWarningKey &&
+              item.eventType !== 'tsunami',
+          )
+        : undefined,
+    [activeWarningKey, data],
+  );
+
+  const tsunamiFrame = activeTsunami?.waveFrames[tsunamiFrameIndex];
 
   const currentWarningData = React.useMemo(
     () =>
@@ -657,10 +830,34 @@ export default function SupersetPluginChart3DMap(
       HAZARDS.filter(hazard =>
         hazard.key === 'earthquake'
           ? earthquakes.length > 0
-          : currentWarningData.some(item => matchesHazard(item, hazard)),
+          : hazard.key === 'tsunami'
+            ? tsunamis.length > 0
+            : currentWarningData.some(item => matchesHazard(item, hazard)),
       ),
-    [currentWarningData, earthquakes.length],
+    [currentWarningData, earthquakes.length, tsunamis.length],
   );
+
+  React.useEffect(() => {
+    // The selected advisory owns its own playback position.
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change
+    setTsunamiFrameIndex(0);
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-adjust-state-on-prop-change
+    setIsTsunamiPlaying(false);
+  }, [activeTsunami?.warningKey]);
+
+  React.useEffect(() => {
+    if (!isTsunamiPlaying || !activeTsunami) return undefined;
+    const timer = window.setInterval(() => {
+      setTsunamiFrameIndex(previous => {
+        if (previous >= activeTsunami.waveFrames.length - 1) {
+          setIsTsunamiPlaying(false);
+          return previous;
+        }
+        return previous + 1;
+      });
+    }, 900);
+    return () => window.clearInterval(timer);
+  }, [activeTsunami, isTsunamiPlaying]);
 
   const visibleData = React.useMemo(
     () =>
@@ -900,6 +1097,83 @@ export default function SupersetPluginChart3DMap(
       },
     });
 
+    [TSUNAMI_WAVE_SOURCE_ID, TSUNAMI_LOCATION_SOURCE_ID].forEach(sourceId => {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+    });
+    map.addLayer({
+      id: 'tsunami-wave-glow',
+      type: 'line',
+      source: TSUNAMI_WAVE_SOURCE_ID,
+      paint: {
+        'line-color': TSUNAMI_COLOR,
+        'line-width': 14,
+        'line-opacity': [
+          'interpolate',
+          ['linear'],
+          ['get', 'trail'],
+          0,
+          0.2,
+          2,
+          0.06,
+        ],
+        'line-blur': 8,
+      },
+    });
+    map.addLayer({
+      id: 'tsunami-wave-rings',
+      type: 'line',
+      source: TSUNAMI_WAVE_SOURCE_ID,
+      paint: {
+        'line-color': TSUNAMI_COLOR,
+        'line-width': [
+          'interpolate',
+          ['linear'],
+          ['get', 'trail'],
+          0,
+          3.5,
+          2,
+          1.5,
+        ],
+        'line-opacity': [
+          'interpolate',
+          ['linear'],
+          ['get', 'trail'],
+          0,
+          0.95,
+          2,
+          0.4,
+        ],
+      },
+    });
+    map.addLayer({
+      id: 'tsunami-affected-areas',
+      type: 'circle',
+      source: TSUNAMI_LOCATION_SOURCE_ID,
+      filter: ['==', ['get', 'kind'], 'affected'],
+      paint: {
+        'circle-radius': 7,
+        'circle-color': TSUNAMI_COLOR,
+        'circle-opacity': 0.85,
+        'circle-stroke-color': DISTRICT_BORDER_COLOR,
+        'circle-stroke-width': 2,
+      },
+    });
+    map.addLayer({
+      id: 'tsunami-epicentre',
+      type: 'circle',
+      source: TSUNAMI_LOCATION_SOURCE_ID,
+      filter: ['==', ['get', 'kind'], 'epicentre'],
+      paint: {
+        'circle-radius': 9,
+        'circle-color': EARTHQUAKE_STRONG_COLOR,
+        'circle-opacity': 0.92,
+        'circle-stroke-color': DISTRICT_BORDER_COLOR,
+        'circle-stroke-width': 2.5,
+      },
+    });
     map.on('mouseenter', EARTHQUAKE_LAYER_ID, () => {
       map.getCanvas().style.cursor = 'pointer';
     });
@@ -911,43 +1185,8 @@ export default function SupersetPluginChart3DMap(
       const geometry = feature?.geometry;
       if (!feature || geometry?.type !== 'Point') return;
       const properties = feature.properties ?? {};
-      const content = document.createElement('div');
-      const heading = document.createElement('strong');
-      heading.textContent = String(properties.title || 'Earthquake');
-      content.appendChild(heading);
-      [
-        ['Location', properties.location],
-        ['Magnitude', properties.magnitude],
-        ['Depth', properties.depth != null ? `${properties.depth} km` : null],
-        [
-          'Strong shaking radius',
-          properties.strongRadiusKm != null
-            ? `${Math.round(properties.strongRadiusKm)} km`
-            : null,
-        ],
-        [
-          'Medium shaking radius',
-          properties.mediumRadiusKm != null
-            ? `${Math.round(properties.mediumRadiusKm)} km`
-            : null,
-        ],
-        [
-          'Light shaking radius',
-          properties.lightRadiusKm != null
-            ? `${Math.round(properties.lightRadiusKm)} km`
-            : null,
-        ],
-        ['Time', formatEventTime(properties.eventTime)],
-      ].forEach(([label, value]) => {
-        if (value === null || value === undefined || value === '') return;
-        const line = document.createElement('div');
-        line.textContent = `${label}: ${value}`;
-        content.appendChild(line);
-      });
-      new maplibregl.Popup()
-        .setLngLat((geometry as Point).coordinates as [number, number])
-        .setDOMContent(content)
-        .addTo(map);
+      const earthquakeKey = String(properties.earthquakeKey ?? '');
+      if (earthquakeKey) setSelectedEarthquakeKey(earthquakeKey);
     });
 
     // The base style supplies building extrusions at close zoom levels.
@@ -998,6 +1237,7 @@ export default function SupersetPluginChart3DMap(
   ]);
 
   // The GeoJSON is sent to an external MapLibre source, not to a React parent.
+  /* eslint-disable react-you-might-not-need-an-effect/no-event-handler */
   /* eslint-disable react-you-might-not-need-an-effect/no-pass-data-to-parent */
   /* eslint-disable react-you-might-not-need-an-effect/no-pass-live-state-to-parent */
   React.useEffect(() => {
@@ -1028,6 +1268,7 @@ export default function SupersetPluginChart3DMap(
           location: earthquake.location,
           eventTime: earthquake.eventTime,
           title: earthquake.title,
+          earthquakeKey: getEarthquakeKey(earthquake),
           strongRadiusKm: radii[index].strong,
           mediumRadiusKm: radii[index].medium,
           lightRadiusKm: radii[index].light,
@@ -1040,20 +1281,23 @@ export default function SupersetPluginChart3DMap(
     > = {
       type: 'FeatureCollection',
       features: EARTHQUAKE_ZONE_LEVELS.flatMap(({ level }) =>
-        visibleEarthquakes.map((earthquake, index) => {
+        visibleEarthquakes.flatMap((earthquake, index) => {
+          if (getEarthquakeKey(earthquake) !== selectedEarthquakeKey) return [];
           const innerRadiusKm =
             level === 'light'
               ? radii[index].medium
               : level === 'medium'
                 ? radii[index].strong
                 : undefined;
-          return createShakingZone(
-            earthquake.longitude,
-            earthquake.latitude,
-            radii[index][level],
-            level,
-            innerRadiusKm,
-          );
+          return [
+            createShakingZone(
+              earthquake.longitude,
+              earthquake.latitude,
+              radii[index][level],
+              level,
+              innerRadiusKm,
+            ),
+          ];
         }),
       ),
     };
@@ -1061,18 +1305,105 @@ export default function SupersetPluginChart3DMap(
     source.setData(featureCollection);
   }, [
     earthquakes,
+    selectedEarthquakeKey,
     enabledHazards.earthquake,
     enabledViews.warnings,
     mapLoaded,
     districtsFC,
   ]);
+  /* eslint-enable react-you-might-not-need-an-effect/no-event-handler */
   /* eslint-enable react-you-might-not-need-an-effect/no-pass-data-to-parent */
   /* eslint-enable react-you-might-not-need-an-effect/no-pass-live-state-to-parent */
 
-  // Fly/zoom the camera to the active state (or back out to the whole
-  // country). The `zoomend` listener above derives pitch after the camera
-  // animation completes, so flying in tilts and flying out flattens without
-  // interrupting either animation.
+  // Synchronize playback state with MapLibre's imperative GeoJSON sources.
+  // The source is an external renderer, not a React parent.
+  /* eslint-disable react-you-might-not-need-an-effect/no-event-handler */
+  /* eslint-disable react-you-might-not-need-an-effect/no-pass-data-to-parent */
+  /* eslint-disable react-you-might-not-need-an-effect/no-pass-live-state-to-parent */
+  React.useEffect(() => {
+    const map = mapRef.current;
+    const waveSource = map?.getSource(
+      TSUNAMI_WAVE_SOURCE_ID,
+    ) as maplibregl.GeoJSONSource | null;
+    const locationSource = map?.getSource(
+      TSUNAMI_LOCATION_SOURCE_ID,
+    ) as maplibregl.GeoJSONSource | null;
+    if (!waveSource || !locationSource) return;
+
+    const isVisible =
+      Boolean(activeTsunami) && enabledHazards.tsunami && enabledViews.warnings;
+    if (!activeTsunami || !isVisible) {
+      const emptyCollection: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: [],
+      };
+      waveSource.setData(emptyCollection);
+      locationSource.setData(emptyCollection);
+      return;
+    }
+
+    const finalMinutes = Math.max(
+      activeTsunami.waveFrames[activeTsunami.waveFrames.length - 1]?.minutes ??
+        0,
+      1,
+    );
+    const progress = Math.min((tsunamiFrame?.minutes ?? 0) / finalMinutes, 1);
+    const start = activeTsunami.earthquakeCoordinates;
+    const maximumRadiusKm = Math.max(
+      ...activeTsunami.affectedAreas.map(area =>
+        distanceBetweenCoordinatesKm(start, area.coordinates),
+      ),
+      1,
+    );
+    const waves: FeatureCollection<LineString> = {
+      type: 'FeatureCollection',
+      features: TSUNAMI_WAVE_TRAILS.flatMap((offset, trail) => {
+        const ringProgress = progress - offset;
+        if (ringProgress <= 0) return [];
+        return [
+          {
+            type: 'Feature',
+            geometry: createWaveRing(start, maximumRadiusKm * ringProgress),
+            properties: { trail },
+          },
+        ];
+      }),
+    };
+    const locations: FeatureCollection<Point> = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: start },
+          properties: {
+            kind: 'epicentre',
+            name: activeTsunami.earthquakeLocation ?? 'Earthquake epicentre',
+          },
+        },
+        ...activeTsunami.affectedAreas.map(area => ({
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: area.coordinates },
+          properties: { kind: 'affected', name: area.name },
+        })),
+      ],
+    };
+    waveSource.setData(waves);
+    locationSource.setData(locations);
+  }, [
+    activeTsunami,
+    tsunamiFrame,
+    enabledHazards.tsunami,
+    enabledViews.warnings,
+    mapLoaded,
+    districtsFC,
+  ]);
+  /* eslint-enable react-you-might-not-need-an-effect/no-event-handler */
+  /* eslint-enable react-you-might-not-need-an-effect/no-pass-data-to-parent */
+  /* eslint-enable react-you-might-not-need-an-effect/no-pass-live-state-to-parent */
+
+  // A query narrowed to one warning key focuses its incident. Unfiltered
+  // tsunami datasets retain the standard Malaysia extent, while native state
+  // filters keep the existing state fly-to behavior.
   React.useEffect(() => {
     const map = mapRef.current;
     // Synchronizing the camera with the external MapLibre instance in
@@ -1080,7 +1411,36 @@ export default function SupersetPluginChart3DMap(
     // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler
     if (!map || !mapLoaded || !stateCentroids) return;
     try {
-      if (selectedStateKey && stateCentroids[selectedStateKey]) {
+      if (selectedEarthquake) {
+        map.flyTo({
+          center: [selectedEarthquake.longitude, selectedEarthquake.latitude],
+          zoom: FILTERED_STATE_ZOOM,
+          bearing: 0,
+          duration: 1200,
+        });
+      } else if (selectedTsunami) {
+        map.flyTo({
+          center: selectedTsunami.earthquakeCoordinates,
+          zoom: FILTERED_STATE_ZOOM,
+          bearing: 0,
+          duration: 1200,
+        });
+      } else if (
+        selectedWarning?.state_key &&
+        stateCentroids[selectedWarning.state_key]
+      ) {
+        map.flyTo({
+          center: stateCentroids[selectedWarning.state_key],
+          zoom: FILTERED_STATE_ZOOM,
+          bearing: 0,
+          duration: 1200,
+        });
+      } else if (activeTsunami) {
+        map.fitBounds(MALAYSIA_PAN_BOUNDS, {
+          bearing: 0,
+          duration: 800,
+        });
+      } else if (selectedStateKey && stateCentroids[selectedStateKey]) {
         map.flyTo({
           center: stateCentroids[selectedStateKey],
           zoom: FILTERED_STATE_ZOOM,
@@ -1100,14 +1460,22 @@ export default function SupersetPluginChart3DMap(
       // eslint-disable-next-line no-console
       console.error('Failed to fly to state', selectedStateKey, error);
     }
-  }, [selectedStateKey, mapLoaded, stateCentroids]);
-
-  const toggleHazard = (key: HazardKey) => {
-    setEnabledHazards(previous => ({ ...previous, [key]: !previous[key] }));
-  };
+  }, [
+    selectedStateKey,
+    mapLoaded,
+    stateCentroids,
+    activeTsunami,
+    selectedEarthquake,
+    selectedTsunami,
+    selectedWarning,
+  ]);
 
   const toggleView = (key: ViewKey, checked: boolean) => {
     setEnabledViews(previous => ({ ...previous, [key]: checked }));
+  };
+
+  const toggleHazard = (key: HazardKey) => {
+    setEnabledHazards(previous => ({ ...previous, [key]: !previous[key] }));
   };
 
   return (
@@ -1209,6 +1577,112 @@ export default function SupersetPluginChart3DMap(
                   </div>
                 )}
               </section>
+              {activeTsunami &&
+                enabledHazards.tsunami &&
+                enabledViews.warnings && (
+                  <section
+                    className={`hazard-map-panel hazard-map-tsunami-timeline${
+                      isTsunamiTimelineMinimized
+                        ? ' hazard-map-tsunami-timeline-minimized'
+                        : ''
+                    }`}
+                    aria-label="Tsunami animation"
+                  >
+                    <div className="hazard-map-tsunami-timeline-header">
+                      <div className="hazard-map-tsunami-model">
+                        {isTsunamiTimelineMinimized ? (
+                          'Tsunami animation'
+                        ) : (
+                          <>Modelled scenario </>
+                        )}
+                      </div>
+                      <div className="hazard-map-tsunami-actions">
+                        {!isTsunamiTimelineMinimized && (
+                          <Button
+                            aria-label={
+                              isTsunamiPlaying
+                                ? 'Pause tsunami animation'
+                                : 'Play tsunami animation'
+                            }
+                            buttonSize="xsmall"
+                            icon={
+                              isTsunamiPlaying ? (
+                                <Icons.PauseOutlined iconSize="s" />
+                              ) : (
+                                <Icons.CaretRightOutlined iconSize="s" />
+                              )
+                            }
+                            showMarginRight={false}
+                            onClick={() => {
+                              if (
+                                !isTsunamiPlaying &&
+                                tsunamiFrameIndex ===
+                                  activeTsunami.waveFrames.length - 1
+                              ) {
+                                setTsunamiFrameIndex(0);
+                              }
+                              setIsTsunamiPlaying(previous => !previous);
+                            }}
+                          />
+                        )}
+                        <Button
+                          aria-expanded={!isTsunamiTimelineMinimized}
+                          aria-label={
+                            isTsunamiTimelineMinimized
+                              ? 'Expand tsunami animation'
+                              : 'Minimize tsunami animation'
+                          }
+                          buttonSize="xsmall"
+                          buttonStyle="link"
+                          icon={
+                            isTsunamiTimelineMinimized ? (
+                              <Icons.DownOutlined iconSize="s" />
+                            ) : (
+                              <Icons.UpOutlined iconSize="s" />
+                            )
+                          }
+                          showMarginRight={false}
+                          onClick={() =>
+                            setIsTsunamiTimelineMinimized(previous => !previous)
+                          }
+                        />
+                      </div>
+                    </div>
+                    {!isTsunamiTimelineMinimized && (
+                      <>
+                        <div className="hazard-map-tsunami-slider">
+                          <Slider
+                            min={0}
+                            max={activeTsunami.waveFrames.length - 1}
+                            step={1}
+                            value={tsunamiFrameIndex}
+                            tooltip={{
+                              formatter: value =>
+                                value === null || value === undefined
+                                  ? ''
+                                  : (activeTsunami.waveFrames[value]?.label ??
+                                    ''),
+                            }}
+                            onChange={value => {
+                              setIsTsunamiPlaying(false);
+                              setTsunamiFrameIndex(
+                                Array.isArray(value) ? value[0] : value,
+                              );
+                            }}
+                          />
+                        </div>
+                        <div className="hazard-map-tsunami-scale">
+                          <span>Earthquake</span>
+                          <span>Expected coastal arrival</span>
+                        </div>
+                        <div className="hazard-map-tsunami-note">
+                          {activeTsunami.instruction ??
+                            'Illustrative wave fronts. Use an authoritative model for operational decisions.'}
+                        </div>
+                      </>
+                    )}
+                  </section>
+                )}
               <div className="hazard-map-legends">
                 <section
                   className={`hazard-map-panel hazard-map-severity-panel${

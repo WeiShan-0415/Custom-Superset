@@ -41,6 +41,17 @@ describe('SupersetPluginChart3DMap buildQuery', () => {
       'depth',
       'magnitude',
       'location',
+      'valid_from',
+      'valid_to',
+      'expected_wave_height_m',
+      'affected_areas',
+      'instruction',
+      'source_name',
+      'source_url',
+      'advisory_source_status',
+      'wave_frames',
+      'earthquake_location',
+      'earthquake_coordinates',
     ]);
   });
 

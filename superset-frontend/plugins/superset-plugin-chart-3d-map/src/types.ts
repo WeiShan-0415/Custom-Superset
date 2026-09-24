@@ -48,6 +48,7 @@ export interface StateMapDataItem {
 }
 
 export interface EarthquakeDataItem {
+  warningKey?: string;
   latitude: number;
   longitude: number;
   magnitude?: number;
@@ -57,12 +58,43 @@ export interface EarthquakeDataItem {
   title?: string;
 }
 
+export interface TsunamiAffectedArea {
+  name: string;
+  coordinates: [number, number];
+}
+
+export interface TsunamiWaveFrame {
+  label: string;
+  minutes: number;
+}
+
+export interface TsunamiDataItem {
+  warningKey?: string;
+  stateName?: string;
+  title?: string;
+  eventTime?: string;
+  validFrom?: string;
+  validTo?: string;
+  severity?: number;
+  expectedWaveHeightM?: number;
+  instruction?: string;
+  sourceName?: string;
+  sourceUrl?: string;
+  advisorySourceStatus?: string;
+  earthquakeLocation?: string;
+  earthquakeCoordinates: [number, number];
+  affectedAreas: TsunamiAffectedArea[];
+  waveFrames: TsunamiWaveFrame[];
+}
+
 export type SupersetPluginChart3DMapProps =
   SupersetPluginChart3DMapStylesProps &
     Omit<SupersetPluginChart3DMapCustomizeProps, 'stateColumn' | 'metric'> & {
       data: StateMapDataItem[];
       earthquakes: EarthquakeDataItem[];
+      tsunamis: TsunamiDataItem[];
       activeStateKey: string | null;
+      activeWarningKey: string | null;
       stateColumn: string;
       sliceId: number;
       setDataMask: (dataMask: Record<string, unknown>) => void;
