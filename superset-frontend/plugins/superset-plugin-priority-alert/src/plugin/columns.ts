@@ -25,8 +25,7 @@ export const alertColumnDefaults = {
   location_column: 'location',
   event_date_column: 'event_date',
   severity_column: 'severity',
-  type_column: null,
-  description_column: null,
+  type_column: null
 } as const;
 
 export type AlertColumnControls = Partial<
@@ -85,7 +84,6 @@ export function getAlertColumns(formData: AlertColumnControls) {
     event_date:
       formData.event_date_column ?? alertColumnDefaults.event_date_column,
     severity: formData.severity_column ?? alertColumnDefaults.severity_column,
-    type: formData.type_column ?? null,
-    description: formData.description_column ?? null,
+    type: formData.type_column ?? null
   };
 }

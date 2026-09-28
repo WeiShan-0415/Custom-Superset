@@ -141,21 +141,6 @@ const config: ControlPanelConfig = {
         ],
         [
           {
-            name: 'description_column',
-            config: {
-              ...singleColumnControl,
-              label: t('Description column'),
-              description: t(
-                'Optional details displayed when an alert is expanded.',
-              ),
-              default: alertColumnDefaults.description_column,
-              validators: [],
-            },
-          },
-        ],
-
-        [
-          {
             name: 'cols',
             config: {
               ...sharedControls.groupby,

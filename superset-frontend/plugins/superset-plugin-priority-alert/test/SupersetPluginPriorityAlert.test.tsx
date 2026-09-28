@@ -58,25 +58,23 @@ yesterday.setDate(today.getDate() - 1);
 const allAlerts: DataRecord[] = [
   {
     warning_key: 'warning-1',
+    state_name: 'Kelantan',
     title_en: 'Severe rainfall',
     location: 'Kota Bharu, Kelantan',
     event_date: today.toISOString(),
     severity: 'critical',
-    description: 'Heavy rain expected.',
   },
   {
     title_en: 'Flash flood warning',
     location: 'Klang, Selangor',
     event_date: yesterday.toISOString(),
     severity: 'warning',
-    description: null,
   },
   {
     title_en: 'Undated alert',
     location: null,
     event_date: 'invalid',
     severity: 'watch',
-    description: null,
   },
 ];
 
@@ -102,13 +100,33 @@ test('displays the rows returned by the Superset time filter', () => {
   expect(screen.queryByText('Flash flood warning')).not.toBeInTheDocument();
   expect(screen.queryByText('Undated alert')).not.toBeInTheDocument();
   expect(
-    screen.getByText('Heavy rain expected.').closest('details'),
+    screen.getByText('Severe rainfall').closest('details'),
   ).not.toHaveAttribute('open');
 });
 
 test('empty query results have a useful message', () => {
   render(<SupersetPluginPriorityAlert {...props} data={[]} />);
   expect(screen.getByText('No alerts today')).toBeInTheDocument();
+});
+
+test('uses a cresting wave icon for tsunami alerts', () => {
+  const { container } = render(
+    <SupersetPluginPriorityAlert
+      {...props}
+      data={[
+        {
+          title_en: 'Tsunami warning',
+          type: 'tsunami',
+          event_date: today.toISOString(),
+        },
+      ]}
+    />,
+  );
+
+  expect(container.querySelector('.alert-icon path')).toHaveAttribute(
+    'd',
+    'M2 22c5 0 8-3 10-8 2-5 6-8 12-8-3 2-4 5-3 8 4-1 8 1 9 5-3-2-6-2-8 1-4 5-8 8-13 8M2 28q4-3 8 0t8 0t12 0',
+  );
 });
 
 test('calculates page size from the available chart height', () => {
@@ -265,7 +283,7 @@ test('renders date-only events returned by the Superset time filter', () => {
   expect(screen.getByText('Date-only alert')).toBeInTheDocument();
 });
 
-test('cross-filters the dashboard by warning key when an alert is clicked', () => {
+test('cross-filters the dashboard by warning key and state when clicked', () => {
   const setDataMask = jest.fn();
   render(
     <SupersetPluginPriorityAlert
@@ -279,7 +297,10 @@ test('cross-filters the dashboard by warning key when an alert is clicked', () =
 
   expect(setDataMask).toHaveBeenCalledWith({
     extraFormData: {
-      filters: [{ col: 'warning_key', op: 'IN', val: ['warning-1'] }],
+      filters: [
+        { col: 'warning_key', op: 'IN', val: ['warning-1'] },
+        { col: 'state_name', op: 'IN', val: ['Kelantan'] },
+      ],
     },
     filterState: {
       value: ['warning-1'],

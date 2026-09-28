@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { styled } from '@apache-superset/core/theme';
 import { t } from '@apache-superset/core/translation';
 import { DataRecord } from '@superset-ui/core';
@@ -68,6 +68,27 @@ const AlertList = styled.ul`
   border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
   border-radius: ${({ theme }) => theme.borderRadius}px;
   overflow: hidden;
+`;
+
+const AlertTabs = styled.div`
+  .ant-tabs-nav-wrap {
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .ant-tabs-nav-list {
+    flex: 0 0 max-content;
+    transform: none !important;
+  }
+
+  .ant-tabs-nav-operations {
+    display: none;
+  }
 `;
 
 const AlertItem = styled.li<{ severity: string }>`
@@ -225,7 +246,6 @@ function AlertIcon({ value }: { value: string }) {
 
     path =
       'M2 9h18a3 3 0 1 0-3-3M5 14h21a3 3 0 1 0-3-3M2 19h12a3 3 0 1 1-3 3M2 26q3-4 7 0t7 0t7 0t7 0M2 30q3-4 7 0t7 0t7 0t7 0';
-
   } else if (/rain/i.test(value)) {
     // eslint-disable-next-line no-console
     console.info('[AlertIcon] Matched rain', {
@@ -235,7 +255,15 @@ function AlertIcon({ value }: { value: string }) {
 
     path =
       'M8 20a6 6 0 1 1 1-12 8 8 0 0 1 15 3 5 5 0 0 1 0 10H8m2 3-2 5m9-5-2 5m9-5-2 5';
+  } else if (/tsunami/i.test(value)) {
+    // eslint-disable-next-line no-console
+    console.info('[AlertIcon] Matched tsunami', {
+      value,
+      matched: 'tsunami',
+    });
 
+    path =
+      'M2 22c5 0 8-3 10-8 2-5 6-8 12-8-3 2-4 5-3 8 4-1 8 1 9 5-3-2-6-2-8 1-4 5-8 8-13 8M2 28q4-3 8 0t8 0t12 0';
   } else if (/flood/i.test(value)) {
     // eslint-disable-next-line no-console
     console.info('[AlertIcon] Matched flood', {
@@ -245,7 +273,6 @@ function AlertIcon({ value }: { value: string }) {
 
     path =
       'M8 15v-3h4V8a4 4 0 0 1 8 0v4h4v3M2 20q4-4 8 0t8 0t12 0M2 25q4-4 8 0t8 0t12 0M2 30q4-4 8 0t8 0t12 0';
-
   } else if (/thunder|storm/i.test(value)) {
     // eslint-disable-next-line no-console
     console.info('[AlertIcon] Matched thunder / storm', {
@@ -254,7 +281,6 @@ function AlertIcon({ value }: { value: string }) {
     });
 
     path = 'M17 2 6 18h9l-2 12 13-19H16l1-9Z';
-
   } else if (/earthquake|seismic/i.test(value)) {
     // eslint-disable-next-line no-console
     console.info('[AlertIcon] Matched earthquake / seismic', {
@@ -263,7 +289,6 @@ function AlertIcon({ value }: { value: string }) {
     });
 
     path = 'M1 16h5l2-6 3 15 4-23 4 28 3-20 3 10 2-4h4';
-
   } else if (/landslide/i.test(value)) {
     // eslint-disable-next-line no-console
     console.info('[AlertIcon] Matched landslide', {
@@ -271,9 +296,7 @@ function AlertIcon({ value }: { value: string }) {
       matched: 'landslide',
     });
 
-    path =
-      'M16 3 2 29h28L16 3Zm-2 7 3 3-3 4 3 3-3 5m8-5 2 2m-2 3 1 1M9 24l1-2';
-
+    path = 'M16 3 2 29h28L16 3Zm-2 7 3 3-3 4 3 3-3 5m8-5 2 2m-2 3 1 1M9 24l1-2';
   } else {
     // eslint-disable-next-line no-console
     console.info('[AlertIcon] No specific hazard matched, using default icon', {
@@ -287,7 +310,7 @@ function AlertIcon({ value }: { value: string }) {
     value,
     path,
   });
-  
+
   return (
     <svg
       width="32"
@@ -321,6 +344,7 @@ export default function SupersetPluginPriorityAlert({
 }: SupersetPluginPriorityAlertProps) {
   const [page, setPage] = useState(1);
   const [activeEventType, setActiveEventType] = useState(ALL_EVENT_TYPES);
+  const tabsRef = useRef<HTMLDivElement>(null);
   const pageSize = calculatePageSize(height);
   const [paginationInputs, setPaginationInputs] = useState({
     data,
@@ -344,6 +368,11 @@ export default function SupersetPluginPriorityAlert({
     setActiveEventType(selectedEventType);
     setPage(1);
   }
+  useEffect(() => {
+    tabsRef.current
+      ?.querySelector<HTMLElement>('.ant-tabs-tab-active')
+      ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [selectedEventType]);
   const alerts = data
     .map((row, index) => ({
       row,
@@ -363,7 +392,8 @@ export default function SupersetPluginPriorityAlert({
     page * pageSize,
   );
 
-  const selectWarning = (warningKey: unknown) => {
+  const selectWarning = (row: DataRecord) => {
+    const warningKey = row.warning_key;
     if (
       !emitCrossFilters ||
       warningKey === null ||
@@ -374,10 +404,18 @@ export default function SupersetPluginPriorityAlert({
     }
     const selected = selectedWarningKeys.includes(String(warningKey));
     const values = selected ? [] : [warningKey];
+    const stateName = row.state_name;
+    const hasStateName =
+      stateName !== null && stateName !== undefined && stateName !== '';
     setDataMask({
       extraFormData: {
         filters: values.length
-          ? [{ col: warningKeyColumn, op: 'IN', val: values }]
+          ? [
+              { col: warningKeyColumn, op: 'IN', val: values },
+              ...(hasStateName
+                ? [{ col: 'state_name', op: 'IN', val: [stateName] }]
+                : []),
+            ]
           : [],
       },
       filterState: {
@@ -403,20 +441,22 @@ export default function SupersetPluginPriorityAlert({
       >
         {headerText || t('Priority alerts')}
       </Typography.Title>
-      <Tabs
-        activeKey={selectedEventType}
-        onChange={key => {
-          setActiveEventType(key);
-          setPage(1);
-        }}
-        items={[
-          { key: ALL_EVENT_TYPES, label: t('All') },
-          ...eventTypes.map(value => ({
-            key: value,
-            label: eventTypeLabel(value),
-          })),
-        ]}
-      />
+      <AlertTabs ref={tabsRef}>
+        <Tabs
+          activeKey={selectedEventType}
+          onChange={key => {
+            setActiveEventType(key);
+            setPage(1);
+          }}
+          items={[
+            { key: ALL_EVENT_TYPES, label: t('All') },
+            ...eventTypes.map(value => ({
+              key: value,
+              label: eventTypeLabel(value),
+            })),
+          ]}
+        />
+      </AlertTabs>
       {visibleAlerts.length === 0 ? (
         <Empty description={t('No alerts today')} />
       ) : (
@@ -434,7 +474,7 @@ export default function SupersetPluginPriorityAlert({
                 severity={severity}
               >
                 <details>
-                  <summary onClick={() => selectWarning(warningKey)}>
+                  <summary onClick={() => selectWarning(row)}>
                     <span className="alert-icon" aria-hidden="true">
                       <AlertIcon value={String(row.type ?? title)} />
                     </span>
@@ -468,12 +508,6 @@ export default function SupersetPluginPriorityAlert({
                       {t('Severity')}: {severity}
                     </Typography.Text>
                     <div>{date?.toLocaleString()}</div>
-                    <div>
-                      {String(
-                        row.description ??
-                          t('No additional details available.'),
-                      )}
-                    </div>
                   </div>
                 </details>
               </AlertItem>

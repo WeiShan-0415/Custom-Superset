@@ -46,7 +46,7 @@ test('uses Superset time filters for event_time', () => {
   expect(query.time_range).toBe('2026-09-07 : 2026-09-08');
 });
 
-test('queries mapped columns and optional details without duplicate columns', () => {
+test('queries mapped and additional columns without duplicates', () => {
   const title = {
     expressionType: 'SQL' as const,
     sqlExpression: 'UPPER(name)',
@@ -59,7 +59,6 @@ test('queries mapped columns and optional details without duplicate columns', ()
     event_date_column: 'issued_at',
     severity_column: 'level',
     type_column: 'hazard',
-    description_column: 'message',
     cols: ['district', 'alert_id'],
   }).queries;
   expect(query.columns).toEqual([
@@ -69,7 +68,6 @@ test('queries mapped columns and optional details without duplicate columns', ()
     'issued_at',
     'level',
     'hazard',
-    'message',
     'event_time',
     'alert_id',
   ]);

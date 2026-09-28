@@ -80,7 +80,6 @@ test('maps selected columns and SQL expression labels to alert fields', () => {
         event_date_column: 'issued_at',
         severity_column: 'level',
         type_column: 'hazard',
-        description_column: 'message',
       },
       queriesData: [
         {
@@ -91,7 +90,6 @@ test('maps selected columns and SQL expression labels to alert fields', () => {
               issued_at: '2026-09-07T14:00:00+08:00',
               level: 'warning',
               hazard: 'strong winds',
-              message: 'Avoid the coast.',
             },
           ],
         },
@@ -104,7 +102,6 @@ test('maps selected columns and SQL expression labels to alert fields', () => {
     event_date: '2026-09-07T14:00:00+08:00',
     severity: 'warning',
     type: 'strong winds',
-    description: 'Avoid the coast.',
   });
 });
 
