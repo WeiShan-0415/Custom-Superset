@@ -19,18 +19,54 @@
 import { styled } from '@apache-superset/core/theme';
 import { SupersetPluginChartKpiCardProps } from './types';
 
-const Card = styled.div<{ height: number; width: number }>`
+const BASE_CARD_WIDTH = 560;
+const BASE_CARD_HEIGHT = 280;
+const MIN_CARD_SCALE = 0.6;
+const MIN_FONT_SCALE = 0.35;
+const FONT_SCALE_BOOST = 1.1;
+
+type ResponsiveCardProps = {
+  $fontScale: number;
+  $scale: number;
+  height: number;
+  width: number;
+};
+
+/** Keeps every visual element proportional when the chart is resized. */
+const getCardScale = (width: number, height: number) =>
+  Math.max(
+    MIN_CARD_SCALE,
+    Math.min(1, width / BASE_CARD_WIDTH, height / BASE_CARD_HEIGHT),
+  );
+
+/** Scales typography directly from the chart width. */
+const getFontScale = (width: number) =>
+  Math.max(MIN_FONT_SCALE, Math.min(1, width / BASE_CARD_WIDTH));
+
+const Card = styled.div<ResponsiveCardProps>`
+  --kpi-dot-size: ${({ $scale }) => 10 * $scale}px;
+  --kpi-font-heading2: ${({ $fontScale, theme }) =>
+    theme.fontSizeHeading2 * $fontScale * FONT_SCALE_BOOST}px;
+  --kpi-font-heading4: ${({ $fontScale, theme }) =>
+    theme.fontSizeHeading4 * $fontScale * FONT_SCALE_BOOST}px;
+  --kpi-font-value: ${({ $fontScale, theme }) =>
+    theme.fontSizeHeading1 * 1.25 * $fontScale * FONT_SCALE_BOOST}px;
+  --kpi-icon-size: ${({ $scale }) => 52 * $scale}px;
+  --kpi-radius: ${({ $scale, theme }) => theme.borderRadiusLG * $scale}px;
+  --kpi-space-2: ${({ $scale, theme }) => theme.sizeUnit * 2 * $scale}px;
+  --kpi-space-5: ${({ $scale, theme }) => theme.sizeUnit * 5 * $scale}px;
+  --kpi-space-8: ${({ $scale, theme }) => theme.sizeUnit * 8 * $scale}px;
+
   align-items: center;
   background: ${({ theme }) => theme.colorBgContainer};
   border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
-  border-radius: ${({ theme }) => theme.borderRadiusLG}px;
+  border-radius: var(--kpi-radius);
   box-sizing: border-box;
-  container-type: inline-size;
   display: flex;
-  gap: ${({ theme }) => theme.sizeUnit * 2}px;
+  gap: var(--kpi-space-2);
   height: ${({ height }) => height}px;
   overflow: hidden;
-  padding: ${({ theme }) => theme.sizeUnit * 5}px;
+  padding: var(--kpi-space-5);
   width: ${({ width }) => width}px;
 `;
 
@@ -40,14 +76,14 @@ const Icon = styled.div`
   border-radius: 50%;
   display: flex;
   flex: 0 0 auto;
-  font-size: ${({ theme }) => theme.fontSizeHeading2}px;
-  height: 52px;
+  font-size: var(--kpi-font-heading2);
+  height: var(--kpi-icon-size);
   justify-content: center;
-  margin-block: ${({ theme }) => theme.sizeUnit * 2}px;
-  margin-inline-end: ${({ theme }) => theme.sizeUnit * 2}px;
+  margin-block: var(--kpi-space-2);
+  margin-inline-end: var(--kpi-space-2);
   margin-inline-start: 0;
   overflow: hidden;
-  width: 52px;
+  width: var(--kpi-icon-size);
 
   img {
     height: 60%;
@@ -64,7 +100,7 @@ const PrimarySection = styled.div`
   align-items: center;
   display: flex;
   flex: 1.1 1 0;
-  gap: ${({ theme }) => theme.sizeUnit * 5}px;
+  gap: var(--kpi-space-5);
   justify-content: flex-start;
   min-width: 0;
 `;
@@ -73,30 +109,20 @@ const Divider = styled.div`
   align-self: stretch;
   border-inline-start: 1px solid ${({ theme }) => theme.colorBorderSecondary};
   flex: 0 0 auto;
-  margin-inline-end: ${({ theme }) => theme.sizeUnit * 8}px;
-  margin-inline-start: ${({ theme }) => theme.sizeUnit * 8}px;
+  margin-inline-end: var(--kpi-space-8);
+  margin-inline-start: var(--kpi-space-8);
 `;
 
 const Title = styled.div`
   color: ${({ theme }) => theme.colorTextSecondary};
-  font-size: ${({ theme }) => theme.fontSizeHeading4}px;
-  font-size: clamp(
-    ${({ theme }) => theme.fontSize}px,
-    4cqw,
-    ${({ theme }) => theme.fontSizeHeading4}px
-  );
+  font-size: var(--kpi-font-heading4);
   overflow-wrap: anywhere;
   white-space: normal;
 `;
 
 const Value = styled.div`
   color: ${({ theme }) => theme.colorText};
-  font-size: ${({ theme }) => theme.fontSizeHeading1 * 1.25}px;
-  font-size: clamp(
-    ${({ theme }) => theme.fontSizeHeading2}px,
-    8cqw,
-    ${({ theme }) => theme.fontSizeHeading1 * 1.25}px
-  );
+  font-size: var(--kpi-font-value);
   font-weight: ${({ theme }) => theme.fontWeightStrong};
   line-height: 1.1;
   overflow: hidden;
@@ -106,12 +132,7 @@ const Value = styled.div`
 
 const SupportingText = styled.div`
   color: ${({ theme }) => theme.colorTextSecondary};
-  font-size: ${({ theme }) => theme.fontSizeHeading4}px;
-  font-size: clamp(
-    ${({ theme }) => theme.fontSize}px,
-    4cqw,
-    ${({ theme }) => theme.fontSizeHeading4}px
-  );
+  font-size: var(--kpi-font-heading4);
   font-weight: ${({ theme }) => theme.fontWeightStrong};
   overflow: hidden;
   text-overflow: ellipsis;
@@ -134,7 +155,7 @@ const StatusList = styled.div`
   display: flex;
   flex: 0.9 1 0;
   flex-direction: column;
-  gap: ${({ theme }) => theme.sizeUnit * 2}px;
+  gap: var(--kpi-space-2);
   min-width: 0;
 `;
 
@@ -142,13 +163,8 @@ const StatusItem = styled.div`
   align-items: center;
   color: ${({ theme }) => theme.colorText};
   display: flex;
-  font-size: ${({ theme }) => theme.fontSizeHeading4}px;
-  font-size: clamp(
-    ${({ theme }) => theme.fontSizeSM}px,
-    3.5cqw,
-    ${({ theme }) => theme.fontSizeHeading4}px
-  );
-  gap: ${({ theme }) => theme.sizeUnit * 2}px;
+  font-size: var(--kpi-font-heading4);
+  gap: var(--kpi-space-2);
   overflow: hidden;
   white-space: nowrap;
   width: 100%;
@@ -164,8 +180,8 @@ const StatusDot = styled.span`
   background: currentColor;
   border-radius: 50%;
   flex: 0 0 auto;
-  height: 10px;
-  width: 10px;
+  height: var(--kpi-dot-size);
+  width: var(--kpi-dot-size);
 
   &.severity--severe {
     color: ${({ theme }) => theme.colorError};
@@ -222,6 +238,8 @@ export default function SupersetPluginChartKpiCard({
   const value = firstRow?.[valueColumn];
   const supportingText = firstRow?.[textColumn];
   const status = firstRow?.[statusColumn];
+  const fontScale = getFontScale(width);
+  const scale = getCardScale(width, height);
   const statusItems = [
     { column: severeColumn, label: 'Severe', status: 3 },
     { column: warningColumn, label: 'Warning', status: 2 },
@@ -229,7 +247,7 @@ export default function SupersetPluginChartKpiCard({
   ].filter(item => item.column);
 
   return (
-    <Card height={height} width={width}>
+    <Card $fontScale={fontScale} $scale={scale} height={height} width={width}>
       <PrimarySection>
         <Icon>
           {isImageUrl(icon) ? <img alt="" src={icon} /> : <span>{icon}</span>}
