@@ -27,6 +27,7 @@
     "access": "public"
   },
   "peerDependencies": {
+    "@apache-superset/core": "*",
     "@airbnb/config-babel": "^2.0.1",
     "@superset-ui/chart-controls": "*",
     "@superset-ui/core": "*",
