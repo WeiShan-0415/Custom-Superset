@@ -91,6 +91,7 @@ scripts/*.zip
 *.iml
 venv
 .venv
+superset-venv/
 @eaDir/
 
 # PyCharm
