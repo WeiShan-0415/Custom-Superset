@@ -222,6 +222,15 @@ export default function chartReducer(
     );
   }
 
+  if (
+    action.type === actions.CHART_UPDATE_STOPPED &&
+    !charts[action.key]
+  ) {
+    // A request can be aborted after its chart was removed or re-keyed
+    // (e.g. viz type change, save, navigation); nothing to update.
+    return charts;
+  }
+
   if (action.type in actionHandlers) {
     return {
       ...charts,

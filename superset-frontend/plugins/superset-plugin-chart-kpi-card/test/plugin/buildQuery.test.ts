@@ -31,8 +31,6 @@ test('buildQuery aggregates the KPI value and groups by supporting columns', () 
     granularity_sqla: 'ds',
     time_column: 'event_time',
     value_column: valueMetric,
-    text_column: 'severity_text',
-    status_column: 'severity',
     severe_column: 'severe_count',
     warning_column: 'warning_count',
     watch_column: 'watch_count',
@@ -52,7 +50,7 @@ test('buildQuery aggregates the KPI value and groups by supporting columns', () 
   ]);
 });
 
-test('buildQuery treats a legacy value column as a SUM metric', () => {
+test('buildQuery treats a legacy value column as a SUM metric and skips an empty time column', () => {
   const queryContext = buildQuery({
     datasource: '5__table',
     value_column: 'no_case',
@@ -66,7 +64,7 @@ test('buildQuery treats a legacy value column as a SUM metric', () => {
       label: 'no_case',
     }),
   ]);
-  expect(queryContext.queries[0].granularity).toBe('event_time');
+  expect(queryContext.queries[0].granularity).toBeUndefined();
 });
 
 test('buildQuery applies the time range to the selected temporal column', () => {

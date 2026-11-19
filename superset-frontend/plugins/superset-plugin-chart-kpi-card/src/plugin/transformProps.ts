@@ -17,38 +17,37 @@
  * under the License.
  */
 import { ChartProps, DataRecord, getMetricLabel } from '@superset-ui/core';
-import { SupersetPluginChartKpiCardQueryFormData } from '../types';
+import {
+  KpiStatusItem,
+  RgbaColor,
+  SupersetPluginChartKpiCardProps,
+  SupersetPluginChartKpiCardQueryFormData,
+} from '../types';
+import { renderSubtitleTemplate } from '../utils/subtitleTemplate';
 
-export default function transformProps(chartProps: ChartProps) {
-  /**
-   * This function is called after a successful response has been
-   * received from the chart data endpoint, and is used to transform
-   * the incoming data prior to being sent to the Visualization.
-   *
-   * The transformProps function is also quite useful to return
-   * additional/modified props to your data viz component. The formData
-   * can also be accessed from your SupersetPluginChartKpiCard.tsx file, but
-   * doing supplying custom props here is often handy for integrating third
-   * party libraries that rely on specific props.
-   *
-   * A description of properties in `chartProps`:
-   * - `height`, `width`: the height/width of the DOM element in which
-   *   the chart is located
-   * - `formData`: the chart data request payload that was sent to the
-   *   backend.
-   * - `queriesData`: the chart data response payload that was received
-   *   from the backend. Some notable properties of `queriesData`:
-   *   - `data`: an array with data, each row with an object mapping
-   *     the column/alias to its value. Example:
-   *     `[{ col1: 'abc', metric1: 10 }, { col1: 'xyz', metric1: 20 }]`
-   *   - `rowcount`: the number of rows in `data`
-   *   - `query`: the query that was issued.
-   *
-   * Please note: the transformProps function gets cached when the
-   * application loads. When making changes to the `transformProps`
-   * function during development with hot reloading, changes won't
-   * be seen until restarting the development server.
-   */
+const SEVERITY_LEVELS = [
+  { key: 'severeColumn', label: 'Severe', status: 3 },
+  { key: 'warningColumn', label: 'Warning', status: 2 },
+  { key: 'watchColumn', label: 'Watch', status: 1 },
+] as const;
+
+const ACCENT_TINT_ALPHA = 0.18;
+
+const isEmpty = (value: unknown) =>
+  value === null || value === undefined || value === '';
+
+const toRgba = ({ r, g, b, a = 1 }: RgbaColor, alpha = a) =>
+  `rgba(${r}, ${g}, ${b}, ${alpha})`;
+
+/**
+ * Maps the chart response and form controls to KPI card props.
+ *
+ * Controls missing from older saved charts fall back to the original
+ * alert-summary appearance so existing charts render unchanged.
+ */
+export default function transformProps(
+  chartProps: ChartProps,
+): SupersetPluginChartKpiCardProps {
   const { width, height, queriesData } = chartProps;
   const formData =
     chartProps.formData as SupersetPluginChartKpiCardQueryFormData;
@@ -56,47 +55,54 @@ export default function transformProps(chartProps: ChartProps) {
     icon = '📊',
     title = 'KPI',
     valueColumn: valueMetric,
-    textColumn = '',
-    statusColumn = '',
-    severeColumn = '',
-    warningColumn = '',
-    watchColumn = '',
+    subtitleTemplate = '',
+    deriveSeveritySubtitle = true,
+    iconStyle = 'circle',
+    accentColor,
+    valueColor = 'default',
+    background = 'theme',
+    showBorder = true,
   } = formData;
   const valueColumn = valueMetric ? getMetricLabel(valueMetric) : '';
-  const queryData = (queriesData[0]?.data ?? []) as DataRecord[];
-  const data = queryData.map(row => {
-    const priorities = [
-      { column: severeColumn, label: 'severe', status: 3 },
-      { column: warningColumn, label: 'warning', status: 2 },
-      { column: watchColumn, label: 'watch', status: 1 },
-    ];
-    const priority = priorities.find(
-      item => item.column && Number(row[item.column]) > 0,
-    ) ?? { label: 'none', status: 0 };
-    const value = row[valueColumn];
-    const supportingText =
-      value === null || value === undefined || value === ''
-        ? priority.label
-        : `${value} ${priority.label}`;
+  const row = (queriesData[0]?.data as DataRecord[] | undefined)?.[0];
+  const value = valueColumn ? row?.[valueColumn] : undefined;
 
-    return {
-      ...row,
-      ...(textColumn ? { [textColumn]: supportingText } : {}),
-      ...(statusColumn ? { [statusColumn]: priority.status } : {}),
-    };
-  });
+  const statusItems: KpiStatusItem[] = SEVERITY_LEVELS.filter(
+    level => formData[level.key],
+  ).map(level => ({
+    label: level.label,
+    status: level.status,
+    value: row?.[formData[level.key] as string],
+  }));
+
+  let subtitle = subtitleTemplate.trim()
+    ? renderSubtitleTemplate(subtitleTemplate, value, row)
+    : '';
+  let subtitleStatus: number | undefined;
+
+  if (deriveSeveritySubtitle && !subtitle) {
+    const priority = statusItems.find(item => Number(item.value) > 0);
+    const label = priority ? priority.label.toLowerCase() : 'none';
+    subtitleStatus = priority?.status ?? 0;
+    subtitle = isEmpty(value) ? label : `${value} ${label}`;
+  }
 
   return {
     width,
     height,
-    data,
     icon,
     title,
-    valueColumn,
-    textColumn,
-    statusColumn,
-    severeColumn,
-    warningColumn,
-    watchColumn,
+    value,
+    subtitle,
+    subtitleStatus,
+    statusItems,
+    iconStyle,
+    valueColor,
+    background,
+    showBorder,
+    accentColor: accentColor ? toRgba(accentColor) : undefined,
+    accentTint: accentColor
+      ? toRgba(accentColor, ACCENT_TINT_ALPHA)
+      : undefined,
   };
 }

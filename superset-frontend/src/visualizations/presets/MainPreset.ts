@@ -97,6 +97,7 @@ import { SupersetPluginPriorityAlert } from 'superset-plugin-priority-alert';
 import { SupersetPluginChartHazardRiskOutlook } from 'superset-plugin-chart-hazard-risk-outlook';
 import { SupersetPluginChartSelectedIncident } from 'superset-plugin-chart-selected-incident';
 import { SupersetPluginChartPopulation } from 'superset-plugin-chart-population';
+import { SupersetPluginDemoIframe } from 'superset-plugin-demo-iframe';
 export default class MainPreset extends Preset {
   constructor() {
     const experimentalPlugins = isFeatureEnabled(
@@ -246,6 +247,9 @@ export default class MainPreset extends Preset {
         }),
         ...experimentalPlugins,
         ...agGridTablePlugin,
+        new SupersetPluginDemoIframe().configure({
+          key: 'ext-demo-iframe',
+        }),
       ],
     });
   }

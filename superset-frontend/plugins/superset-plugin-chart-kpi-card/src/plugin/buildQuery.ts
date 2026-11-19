@@ -55,7 +55,7 @@ export default function buildQuery(
 ) {
   const {
     value_column: valueColumn,
-    time_column: timeColumn = 'event_time',
+    time_column: timeColumn,
     severe_column: severeColumn,
     warning_column: warningColumn,
     watch_column: watchColumn,
@@ -70,7 +70,7 @@ export default function buildQuery(
       {
         ...baseQueryObject,
         columns: [],
-        granularity: getColumnLabel(timeColumn),
+        ...(timeColumn ? { granularity: getColumnLabel(timeColumn) } : {}),
         metrics: [
           ...(valueMetric ? [valueMetric] : []),
           ...[severeColumn, warningColumn, watchColumn]

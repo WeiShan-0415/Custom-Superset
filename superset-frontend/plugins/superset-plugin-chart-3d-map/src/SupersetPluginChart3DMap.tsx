@@ -26,13 +26,18 @@ import React from 'react';
 import type { FeatureCollection, LineString, Point, Polygon } from 'geojson';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { styled } from '@apache-superset/core/theme';
+import { styled, useTheme } from '@apache-superset/core/theme';
 import { Button, Icons, Switch } from '@superset-ui/core/components';
 import Slider from '@superset-ui/core/components/Slider';
 import {
   AllDistrictsFeatureCollection,
   loadAllDistricts,
 } from './geo/loadDistricts';
+import {
+  DunFeatureCollection,
+  formatDunLabel,
+  loadDunBoundaries,
+} from './geo/loadDun';
 import { MALAYSIA_PAN_BOUNDS } from './geo/bounds';
 import { computeStateCentroids } from './geo/centroids';
 import {
@@ -377,6 +382,42 @@ const Styles = styled.div<SupersetPluginChart3DMapStylesProps>`
     color: #1f2937;
   }
 
+  .hazard-map-dun-popup .maplibregl-popup-content {
+    padding: ${({ theme }) => theme.sizeUnit * 2}px
+      ${({ theme }) => theme.sizeUnit * 3}px;
+    color: ${({ theme }) => theme.colorText};
+    font-size: ${({ theme }) => theme.fontSizeSM}px;
+    font-weight: ${({ theme }) => theme.fontWeightStrong};
+    white-space: nowrap;
+    background-color: ${({ theme }) => theme.colorBgElevated};
+    border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
+    border-radius: ${({ theme }) => theme.borderRadius}px;
+    box-shadow: ${({ theme }) => theme.boxShadowSecondary};
+  }
+
+  .hazard-map-dun-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+  .hazard-map-dun-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+  .hazard-map-dun-popup.maplibregl-popup-anchor-top-right
+    .maplibregl-popup-tip {
+    border-bottom-color: ${({ theme }) => theme.colorBgElevated};
+  }
+
+  .hazard-map-dun-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+  .hazard-map-dun-popup.maplibregl-popup-anchor-bottom-left
+    .maplibregl-popup-tip,
+  .hazard-map-dun-popup.maplibregl-popup-anchor-bottom-right
+    .maplibregl-popup-tip {
+    border-top-color: ${({ theme }) => theme.colorBgElevated};
+  }
+
+  .hazard-map-dun-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+    border-right-color: ${({ theme }) => theme.colorBgElevated};
+  }
+
+  .hazard-map-dun-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+    border-left-color: ${({ theme }) => theme.colorBgElevated};
+  }
+
   .maplibregl-ctrl-top-right {
     top: ${({ width }) => (width >= 520 ? '326px' : '76px')};
     right: ${({ theme }) => theme.sizeUnit * 2}px;
@@ -452,6 +493,13 @@ const EARTHQUAKE_STRONG_COLOR = '#e63946';
 const DEFAULT_STATE_COLOR = SEVERITY_NONE_COLOR;
 const DISTRICT_BORDER_COLOR = '#ffffff';
 const DISTRICT_FILL_OPACITY = 0.5;
+const DUN_SOURCE_ID = 'dun-boundaries';
+const DUN_HIT_AREA_LAYER_ID = 'dun-hit-area';
+const DUN_LINE_LAYER_ID = 'dun-line';
+const DUN_HOVER_LINE_LAYER_ID = 'dun-hover-line';
+// A fixed cartographic highlight keeps the selected boundary unmistakable.
+// eslint-disable-next-line theme-colors/no-literal-colors
+const DUN_HOVER_BORDER_COLOR = '#0f1f4d';
 const EARTHQUAKE_SOURCE_ID = 'earthquakes';
 const EARTHQUAKE_LAYER_ID = 'earthquake-points';
 const EARTHQUAKE_ZONE_SOURCE_ID = 'earthquake-shaking-zones';
@@ -705,6 +753,7 @@ function createWaveRing(
 export default function SupersetPluginChart3DMap(
   props: SupersetPluginChart3DMapProps,
 ) {
+  const theme = useTheme();
   const {
     data,
     earthquakes,
@@ -755,6 +804,7 @@ export default function SupersetPluginChart3DMap(
   const [mapLoaded, setMapLoaded] = React.useState(false);
   const [districtsFC, setDistrictsFC] =
     React.useState<AllDistrictsFeatureCollection | null>(null);
+  const [dunFC, setDunFC] = React.useState<DunFeatureCollection | null>(null);
   const [stateCentroids, setStateCentroids] = React.useState<Record<
     string,
     [number, number]
@@ -944,19 +994,26 @@ export default function SupersetPluginChart3DMap(
     };
   }, []);
 
-  // Load the (static, module-cached) Malaysia district geodata once.
+  // Load the static, module-cached administrative geodata once.
   React.useEffect(() => {
     let cancelled = false;
-    loadAllDistricts().then(fc => {
-      if (cancelled) return;
-      setDistrictsFC(fc);
-      try {
-        setStateCentroids(computeStateCentroids(fc));
-      } catch (error) {
+    Promise.all([loadAllDistricts(), loadDunBoundaries()]).then(
+      ([districts, dun]) => {
+        if (cancelled) return;
+        setDistrictsFC(districts);
+        setDunFC(dun);
+        try {
+          setStateCentroids(computeStateCentroids(districts));
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to compute state centroids', error);
+        }
+      },
+      error => {
         // eslint-disable-next-line no-console
-        console.error('Failed to compute state centroids', error);
-      }
-    });
+        console.error('Failed to load administrative boundaries', error);
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -971,7 +1028,7 @@ export default function SupersetPluginChart3DMap(
     // event-handler-in-effect: layers/sources can only be added once the
     // map's 'load' event and the async geodata fetch have both resolved.
     // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler
-    if (!map || !mapLoaded || !districtsFC) {
+    if (!map || !mapLoaded || !districtsFC || !dunFC) {
       return;
     }
     if (layersReadyRef.current) return;
@@ -1036,6 +1093,7 @@ export default function SupersetPluginChart3DMap(
       layout: { visibility: 'none' },
       paint: { 'line-color': DISTRICT_BORDER_COLOR, 'line-width': 0.5 },
     });
+    map.addSource(DUN_SOURCE_ID, { type: 'geojson', data: dunFC });
 
     map.addSource(EARTHQUAKE_SOURCE_ID, {
       type: 'geojson',
@@ -1174,6 +1232,68 @@ export default function SupersetPluginChart3DMap(
         'circle-stroke-width': 2.5,
       },
     });
+    map.addLayer({
+      id: DUN_HIT_AREA_LAYER_ID,
+      type: 'fill',
+      source: DUN_SOURCE_ID,
+      paint: { 'fill-color': theme.colorPrimaryBorderHover, 'fill-opacity': 0 },
+    });
+    map.addLayer({
+      id: DUN_LINE_LAYER_ID,
+      type: 'line',
+      source: DUN_SOURCE_ID,
+      paint: {
+        'line-color': theme.colorPrimaryBorderHover,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.45, 9, 1.2],
+        'line-opacity': 0.8,
+      },
+    });
+    map.addLayer({
+      id: DUN_HOVER_LINE_LAYER_ID,
+      type: 'line',
+      source: DUN_SOURCE_ID,
+      filter: ['==', ['get', 'code_dun'], ''],
+      paint: {
+        'line-color': DUN_HOVER_BORDER_COLOR,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5, 9, 3],
+        'line-opacity': 1,
+      },
+    });
+    const dunPopup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      className: 'hazard-map-dun-popup',
+      offset: 10,
+    });
+    map.on('mousemove', DUN_HIT_AREA_LAYER_ID, event => {
+      const feature = event.features?.[0];
+      const properties = feature?.properties;
+      if (!feature || !properties) return;
+      const codeDun = String(properties.code_dun ?? '');
+      const state = String(properties.state ?? '');
+      map.setFilter(DUN_HOVER_LINE_LAYER_ID, [
+        'all',
+        ['==', ['get', 'code_dun'], codeDun],
+        ['==', ['get', 'state'], state],
+      ]);
+      const label = formatDunLabel({
+        code_dun: codeDun,
+        dun: String(properties.dun ?? ''),
+        state,
+      });
+      if (!label) return;
+      const content = document.createElement('span');
+      content.textContent = label;
+      dunPopup.setLngLat(event.lngLat).setDOMContent(content).addTo(map);
+    });
+    map.on('mouseenter', DUN_HIT_AREA_LAYER_ID, () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', DUN_HIT_AREA_LAYER_ID, () => {
+      map.getCanvas().style.cursor = '';
+      dunPopup.remove();
+      map.setFilter(DUN_HOVER_LINE_LAYER_ID, ['==', ['get', 'code_dun'], '']);
+    });
     map.on('mouseenter', EARTHQUAKE_LAYER_ID, () => {
       map.getCanvas().style.cursor = 'pointer';
     });
@@ -1197,7 +1317,34 @@ export default function SupersetPluginChart3DMap(
       .forEach(layer =>
         map.setLayoutProperty(layer.id, 'visibility', 'visible'),
       );
-  }, [mapLoaded, districtsFC]);
+  }, [
+    mapLoaded,
+    districtsFC,
+    dunFC,
+    theme.colorPrimaryBorderHover,
+  ]);
+
+  // Keep MapLibre's imperative paint state synchronized with theme changes.
+  React.useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReadyRef.current || !map.getLayer(DUN_LINE_LAYER_ID)) {
+      return;
+    }
+    map.setPaintProperty(
+      DUN_LINE_LAYER_ID,
+      'line-color',
+      theme.colorPrimaryBorderHover,
+    );
+    map.setPaintProperty(
+      DUN_HIT_AREA_LAYER_ID,
+      'fill-color',
+      theme.colorPrimaryBorderHover,
+    );
+  }, [
+    mapLoaded,
+    dunFC,
+    theme.colorPrimaryBorderHover,
+  ]);
 
   // Fill color / district border visibility react to prop changes on an
   // already-built map.

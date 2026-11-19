@@ -17,11 +17,28 @@
  * under the License.
  */
 import {
-  DataRecord,
   QueryFormColumn,
   QueryFormData,
   QueryFormMetric,
 } from '@superset-ui/core';
+
+export type KpiIconStyle = 'circle' | 'square' | 'dot' | 'none';
+export type KpiValueColor = 'default' | 'accent';
+export type KpiBackground = 'theme' | 'transparent';
+
+export interface RgbaColor {
+  r: number;
+  g: number;
+  b: number;
+  a?: number;
+}
+
+export interface KpiStatusItem {
+  label: string;
+  /** Severity level: 3 severe, 2 warning, 1 watch. */
+  status: number;
+  value: unknown;
+}
 
 export interface SupersetPluginChartKpiCardStylesProps {
   height: number;
@@ -31,35 +48,43 @@ export interface SupersetPluginChartKpiCardStylesProps {
 export interface SupersetPluginChartKpiCardCustomizeProps {
   icon: string;
   title: string;
-  valueColumn: string;
-  textColumn: string;
-  statusColumn: string;
-  severeColumn: string;
-  warningColumn: string;
-  watchColumn: string;
+  value: unknown;
+  subtitle: string;
+  /** Severity level used to color the subtitle, when derived from counts. */
+  subtitleStatus?: number;
+  statusItems: KpiStatusItem[];
+  iconStyle: KpiIconStyle;
+  valueColor: KpiValueColor;
+  background: KpiBackground;
+  showBorder: boolean;
+  /** CSS color for the accent; falls back to the theme primary color. */
+  accentColor?: string;
+  /** Translucent variant of the accent used for icon tiles. */
+  accentTint?: string;
 }
 
 export type SupersetPluginChartKpiCardQueryFormData = QueryFormData & {
   icon?: string;
   title?: string;
-  time_column?: QueryFormColumn;
+  time_column?: QueryFormColumn | null;
   value_column?: QueryFormMetric | string;
-  text_column?: string;
-  status_column?: string;
   severe_column?: string;
   warning_column?: string;
   watch_column?: string;
-  valueColumn?: string;
-  textColumn?: string;
-  statusColumn?: string;
+  valueColumn?: QueryFormMetric | string;
   severeColumn?: string;
   warningColumn?: string;
   watchColumn?: string;
-  timeColumn?: QueryFormColumn;
+  timeColumn?: QueryFormColumn | null;
+  subtitleTemplate?: string;
+  deriveSeveritySubtitle?: boolean;
+  iconStyle?: KpiIconStyle;
+  accentColor?: RgbaColor | null;
+  valueColor?: KpiValueColor;
+  background?: KpiBackground;
+  showBorder?: boolean;
 };
 
 export type SupersetPluginChartKpiCardProps =
   SupersetPluginChartKpiCardStylesProps &
-    SupersetPluginChartKpiCardCustomizeProps & {
-      data: DataRecord[];
-    };
+    SupersetPluginChartKpiCardCustomizeProps;

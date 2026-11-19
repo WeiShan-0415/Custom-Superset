@@ -16,34 +16,56 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { styled } from '@apache-superset/core/theme';
-import { SupersetPluginChartKpiCardProps } from './types';
+import { css, styled, SupersetTheme } from '@apache-superset/core/theme';
+import {
+  KpiBackground,
+  KpiIconStyle,
+  KpiValueColor,
+  SupersetPluginChartKpiCardProps,
+} from './types';
 
-const BASE_CARD_WIDTH = 560;
+/** Reference size of the alert-summary layout (with a breakdown list). */
+const BASE_WIDE_WIDTH = 560;
+/** Reference width of single-section layouts (no breakdown list). */
+const BASE_COMPACT_WIDTH = 360;
 const BASE_CARD_HEIGHT = 280;
+/** Height the text block needs at scale 1, including card padding. */
+const BASE_CONTENT_HEIGHT = 150;
 const MIN_CARD_SCALE = 0.6;
 const MIN_FONT_SCALE = 0.35;
 const FONT_SCALE_BOOST = 1.1;
 
 type ResponsiveCardProps = {
+  $accent?: string;
+  $accentTint?: string;
+  $background: KpiBackground;
   $fontScale: number;
   $scale: number;
+  $showBorder: boolean;
   height: number;
   width: number;
 };
 
+const clamp = (min: number, value: number) => Math.max(min, Math.min(1, value));
+
 /** Keeps every visual element proportional when the chart is resized. */
-const getCardScale = (width: number, height: number) =>
-  Math.max(
-    MIN_CARD_SCALE,
-    Math.min(1, width / BASE_CARD_WIDTH, height / BASE_CARD_HEIGHT),
+const getCardScale = (width: number, height: number, baseWidth: number) =>
+  clamp(MIN_CARD_SCALE, Math.min(width / baseWidth, height / BASE_CARD_HEIGHT));
+
+/**
+ * Scales typography from the chart width, capped by the height so short,
+ * wide cards do not overflow vertically.
+ */
+const getFontScale = (width: number, height: number, baseWidth: number) =>
+  clamp(
+    MIN_FONT_SCALE,
+    Math.min(width / baseWidth, height / BASE_CONTENT_HEIGHT),
   );
 
-/** Scales typography directly from the chart width. */
-const getFontScale = (width: number) =>
-  Math.max(MIN_FONT_SCALE, Math.min(1, width / BASE_CARD_WIDTH));
-
 const Card = styled.div<ResponsiveCardProps>`
+  --kpi-accent: ${({ $accent, theme }) => $accent ?? theme.colorPrimary};
+  --kpi-accent-tint: ${({ $accentTint, theme }) =>
+    $accentTint ?? theme.colorPrimaryBg};
   --kpi-dot-size: ${({ $scale }) => 10 * $scale}px;
   --kpi-font-heading2: ${({ $fontScale, theme }) =>
     theme.fontSizeHeading2 * $fontScale * FONT_SCALE_BOOST}px;
@@ -58,8 +80,11 @@ const Card = styled.div<ResponsiveCardProps>`
   --kpi-space-8: ${({ $scale, theme }) => theme.sizeUnit * 8 * $scale}px;
 
   align-items: center;
-  background: ${({ theme }) => theme.colorBgContainer};
-  border: 1px solid ${({ theme }) => theme.colorBorderSecondary};
+  background: ${({ $background, theme }) =>
+    $background === 'transparent' ? 'transparent' : theme.colorBgContainer};
+  border: 1px solid
+    ${({ $showBorder, theme }) =>
+      $showBorder ? theme.colorBorderSecondary : 'transparent'};
   border-radius: var(--kpi-radius);
   box-sizing: border-box;
   display: flex;
@@ -70,10 +95,16 @@ const Card = styled.div<ResponsiveCardProps>`
   width: ${({ width }) => width}px;
 `;
 
-const Icon = styled.div`
+const Icon = styled.div<{ $iconStyle: KpiIconStyle }>`
   align-items: center;
-  background: ${({ theme }) => theme.colorFillSecondary};
-  border-radius: 50%;
+  background: ${({ $iconStyle, theme }) =>
+    $iconStyle === 'square'
+      ? 'var(--kpi-accent-tint)'
+      : theme.colorFillSecondary};
+  border-radius: ${({ $iconStyle }) =>
+    $iconStyle === 'square' ? 'var(--kpi-radius)' : '50%'};
+  color: ${({ $iconStyle }) =>
+    $iconStyle === 'square' ? 'var(--kpi-accent)' : 'inherit'};
   display: flex;
   flex: 0 0 auto;
   font-size: var(--kpi-font-heading2);
@@ -114,20 +145,46 @@ const Divider = styled.div`
 `;
 
 const Title = styled.div`
+  align-items: center;
   color: ${({ theme }) => theme.colorTextSecondary};
+  display: flex;
   font-size: var(--kpi-font-heading4);
+  gap: var(--kpi-space-2);
   overflow-wrap: anywhere;
   white-space: normal;
 `;
 
-const Value = styled.div`
-  color: ${({ theme }) => theme.colorText};
+const TitleDot = styled.span`
+  background: var(--kpi-accent);
+  border-radius: 50%;
+  flex: 0 0 auto;
+  height: var(--kpi-dot-size);
+  width: var(--kpi-dot-size);
+`;
+
+const Value = styled.div<{ $valueColor: KpiValueColor }>`
+  color: ${({ $valueColor, theme }) =>
+    $valueColor === 'accent' ? 'var(--kpi-accent)' : theme.colorText};
   font-size: var(--kpi-font-value);
   font-weight: ${({ theme }) => theme.fontWeightStrong};
   line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+`;
+
+const severityColors = ({ theme }: { theme: SupersetTheme }) => css`
+  &.severity--severe {
+    color: ${theme.colorError};
+  }
+
+  &.severity--warning {
+    color: ${theme.colorWarningTextActive};
+  }
+
+  &.severity--watch {
+    color: ${theme.colorWarning};
+  }
 `;
 
 const SupportingText = styled.div`
@@ -138,17 +195,7 @@ const SupportingText = styled.div`
   text-overflow: ellipsis;
   white-space: nowrap;
 
-  &.severity--severe {
-    color: ${({ theme }) => theme.colorError};
-  }
-
-  &.severity--warning {
-    color: ${({ theme }) => theme.colorWarningTextActive};
-  }
-
-  &.severity--watch {
-    color: ${({ theme }) => theme.colorWarning};
-  }
+  ${severityColors}
 `;
 
 const StatusList = styled.div`
@@ -183,98 +230,90 @@ const StatusDot = styled.span`
   height: var(--kpi-dot-size);
   width: var(--kpi-dot-size);
 
-  &.severity--severe {
-    color: ${({ theme }) => theme.colorError};
-  }
-
-  &.severity--warning {
-    color: ${({ theme }) => theme.colorWarningTextActive};
-  }
-
-  &.severity--watch {
-    color: ${({ theme }) => theme.colorWarning};
-  }
+  ${severityColors}
 `;
+
+const SEVERITY_CLASSES: Record<number, string> = {
+  1: 'severity--watch',
+  2: 'severity--warning',
+  3: 'severity--severe',
+};
 
 const isImageUrl = (icon: string) => /^(https?:|data:image\/)/i.test(icon);
 
 const displayValue = (value: unknown) =>
   value === null || value === undefined || value === '' ? '—' : String(value);
 
-const getSeverityClass = (status: unknown, supportingText: unknown) => {
-  const numericSeverityClasses: Record<number, string> = {
-    1: 'severity--watch',
-    2: 'severity--warning',
-    3: 'severity--severe',
-  };
-
-  if (status !== '' && status !== null && status !== undefined) {
-    return numericSeverityClasses[Number(status)];
-  }
-
-  const normalizedValue = displayValue(supportingText).toLowerCase();
-  const severityLevels = ['severe', 'warning', 'watch'];
-  const severity = severityLevels.find(level =>
-    normalizedValue.includes(level),
-  );
-
-  return severity ? `severity--${severity}` : undefined;
-};
-
 export default function SupersetPluginChartKpiCard({
-  data,
+  accentColor,
+  accentTint,
+  background,
   height,
   icon,
-  severeColumn,
-  statusColumn,
-  textColumn,
+  iconStyle,
+  showBorder,
+  statusItems,
+  subtitle,
+  subtitleStatus,
   title,
-  valueColumn,
-  warningColumn,
-  watchColumn,
+  value,
+  valueColor,
   width,
 }: SupersetPluginChartKpiCardProps) {
-  const firstRow = data[0];
-  const value = firstRow?.[valueColumn];
-  const supportingText = firstRow?.[textColumn];
-  const status = firstRow?.[statusColumn];
-  const fontScale = getFontScale(width);
-  const scale = getCardScale(width, height);
-  const statusItems = [
-    { column: severeColumn, label: 'Severe', status: 3 },
-    { column: warningColumn, label: 'Warning', status: 2 },
-    { column: watchColumn, label: 'Watch', status: 1 },
-  ].filter(item => item.column);
+  const hasBreakdown = statusItems.length > 0;
+  const baseWidth = hasBreakdown ? BASE_WIDE_WIDTH : BASE_COMPACT_WIDTH;
+  const fontScale = getFontScale(width, height, baseWidth);
+  const scale = getCardScale(width, height, baseWidth);
+  const showIconBox =
+    (iconStyle === 'circle' || iconStyle === 'square') && icon;
 
   return (
-    <Card $fontScale={fontScale} $scale={scale} height={height} width={width}>
+    <Card
+      $accent={accentColor}
+      $accentTint={accentTint}
+      $background={background}
+      $fontScale={fontScale}
+      $scale={scale}
+      $showBorder={showBorder}
+      height={height}
+      width={width}
+    >
       <PrimarySection>
-        <Icon>
-          {isImageUrl(icon) ? <img alt="" src={icon} /> : <span>{icon}</span>}
-        </Icon>
+        {showIconBox && (
+          <Icon $iconStyle={iconStyle}>
+            {isImageUrl(icon) ? <img alt="" src={icon} /> : <span>{icon}</span>}
+          </Icon>
+        )}
         <Content>
-          <Title title={title}>{title}</Title>
-          <Value title={displayValue(value)}>{displayValue(value)}</Value>
-          <SupportingText
-            className={getSeverityClass(status, supportingText)}
-            title={displayValue(supportingText)}
-          >
-            {displayValue(supportingText)}
-          </SupportingText>
+          <Title title={title}>
+            {iconStyle === 'dot' && <TitleDot />}
+            <span>{title}</span>
+          </Title>
+          <Value $valueColor={valueColor} title={displayValue(value)}>
+            {displayValue(value)}
+          </Value>
+          {subtitle && (
+            <SupportingText
+              className={
+                subtitleStatus ? SEVERITY_CLASSES[subtitleStatus] : undefined
+              }
+              title={subtitle}
+            >
+              {subtitle}
+            </SupportingText>
+          )}
         </Content>
       </PrimarySection>
-      {statusItems.length > 0 && (
+      {hasBreakdown && (
         <>
           <Divider />
           <StatusList>
             {statusItems.map(item => {
-              const rowText = `${displayValue(firstRow?.[item.column])} ${item.label}`;
+              const rowText = `${displayValue(item.value)} ${item.label}`;
 
               return (
                 <StatusItem key={item.status} title={rowText}>
-                  <StatusDot
-                    className={getSeverityClass(item.status, rowText)}
-                  />
+                  <StatusDot className={SEVERITY_CLASSES[item.status]} />
                   <span>{rowText}</span>
                 </StatusItem>
               );

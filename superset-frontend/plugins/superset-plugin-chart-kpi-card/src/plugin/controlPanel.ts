@@ -46,8 +46,9 @@ const config: ControlPanelConfig = {
             config: {
               ...singleColumnControl,
               label: t('Time filter column'),
+              validators: [],
               description: t(
-                'Temporal column used by the Superset time-range filter.',
+                'Optional temporal column used by the Superset time-range filter. Leave empty for datasets without a time column.',
               ),
               default: 'event_time',
             },
@@ -68,29 +69,6 @@ const config: ControlPanelConfig = {
               label: t('Value column'),
               description: t(
                 'Metric used for the large KPI value. Select a column and an aggregation such as SUM.',
-              ),
-            },
-          },
-        ],
-        [
-          {
-            name: 'text_column',
-            config: {
-              ...singleColumnControl,
-              label: t('Supporting text column'),
-              description: t('Column displayed below the KPI value'),
-            },
-          },
-        ],
-        [
-          {
-            name: 'status_column',
-            config: {
-              ...singleColumnControl,
-              label: t('Status color column'),
-              validators: [],
-              description: t(
-                'Optional numeric column used for color: 3 red, 2 orange, 1 yellow, 0 green',
               ),
             },
           },
@@ -134,7 +112,7 @@ const config: ControlPanelConfig = {
             name: 'row_limit',
             config: {
               ...sharedControls.row_limit,
-              default: 3,
+              default: 1,
             },
           },
         ],
@@ -159,6 +137,34 @@ const config: ControlPanelConfig = {
         ],
         [
           {
+            name: 'subtitle_template',
+            config: {
+              type: 'TextControl',
+              default: '',
+              renderTrigger: true,
+              label: t('Subtitle'),
+              description: t(
+                'Text shown below the value. Use {value} for the KPI value or {column} for any queried column/metric label, e.g. "{value} live station alerts".',
+              ),
+            },
+          },
+        ],
+        [
+          {
+            name: 'derive_severity_subtitle',
+            config: {
+              type: 'CheckboxControl',
+              default: false,
+              renderTrigger: true,
+              label: t('Derive subtitle from severity counts'),
+              description: t(
+                'When the subtitle is empty, show "<value> <highest severity>" colored by the highest non-zero Severe/Warning/Watch count',
+              ),
+            },
+          },
+        ],
+        [
+          {
             name: 'icon',
             config: {
               type: 'TextControl',
@@ -168,6 +174,80 @@ const config: ControlPanelConfig = {
               description: t(
                 'Enter an emoji, short text symbol, or an image URL',
               ),
+            },
+          },
+        ],
+        [
+          {
+            name: 'icon_style',
+            config: {
+              type: 'SelectControl',
+              default: 'circle',
+              renderTrigger: true,
+              clearable: false,
+              label: t('Icon style'),
+              description: t('How the icon is displayed next to the KPI'),
+              choices: [
+                ['circle', t('Circle')],
+                ['square', t('Rounded square (accent tint)')],
+                ['dot', t('Dot before title')],
+                ['none', t('None')],
+              ],
+            },
+          },
+        ],
+        [
+          {
+            name: 'accent_color',
+            config: {
+              type: 'ColorPickerControl',
+              renderTrigger: true,
+              label: t('Accent color'),
+              description: t(
+                'Color of the dot, icon tile and (optionally) the value. Defaults to the theme primary color.',
+              ),
+            },
+          },
+          {
+            name: 'value_color',
+            config: {
+              type: 'SelectControl',
+              default: 'default',
+              renderTrigger: true,
+              clearable: false,
+              label: t('Value color'),
+              choices: [
+                ['default', t('Default text')],
+                ['accent', t('Accent color')],
+              ],
+            },
+          },
+        ],
+        [
+          {
+            name: 'background',
+            config: {
+              type: 'SelectControl',
+              default: 'theme',
+              renderTrigger: true,
+              clearable: false,
+              label: t('Background'),
+              description: t(
+                'Transparent lets the dashboard background show through the card',
+              ),
+              choices: [
+                ['theme', t('Theme')],
+                ['transparent', t('Transparent')],
+              ],
+            },
+          },
+          {
+            name: 'show_border',
+            config: {
+              type: 'CheckboxControl',
+              default: true,
+              renderTrigger: true,
+              label: t('Show border'),
             },
           },
         ],
